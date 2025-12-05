@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, Save, User, GraduationCap, Trophy } from 'lucide-react';
 
+type DivisionType = 'NCAA_D1' | 'NCAA_D2' | 'NCAA_D3' | 'NAIA' | 'NJCAA';
+
 interface Profile {
   id: string;
   first_name: string;
@@ -30,13 +32,13 @@ interface Profile {
   ielts_score: number | null;
   budget_per_year: number | null;
   target_intake: string | null;
-  target_divisions: string[];
+  target_divisions: DivisionType[];
   target_regions: string[];
   additional_notes: string | null;
   highlight_video_url: string | null;
 }
 
-const divisions = [
+const divisions: { value: DivisionType; label: string }[] = [
   { value: 'NCAA_D1', label: 'NCAA Division I' },
   { value: 'NCAA_D2', label: 'NCAA Division II' },
   { value: 'NCAA_D3', label: 'NCAA Division III' },
@@ -64,7 +66,7 @@ export const AthleteProfile: React.FC = () => {
         console.error('Error fetching profile:', error);
         toast.error('Failed to load profile');
       } else {
-        setProfile(data);
+        setProfile(data as Profile);
       }
       setLoading(false);
     };
@@ -72,12 +74,12 @@ export const AthleteProfile: React.FC = () => {
     fetchProfile();
   }, [user]);
 
-  const handleChange = (field: keyof Profile, value: any) => {
+  const handleChange = (field: keyof Profile, value: unknown) => {
     if (!profile) return;
     setProfile({ ...profile, [field]: value });
   };
 
-  const handleDivisionToggle = (division: string) => {
+  const handleDivisionToggle = (division: DivisionType) => {
     if (!profile) return;
     const current = profile.target_divisions || [];
     const updated = current.includes(division)
@@ -131,7 +133,7 @@ export const AthleteProfile: React.FC = () => {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-full">
-          <Loader2 className="h-8 w-8 animate-spin text-venture-blue" />
+          <Loader2 className="h-8 w-8 animate-spin text-[hsl(210,100%,50%)]" />
         </div>
       </DashboardLayout>
     );
@@ -168,8 +170,8 @@ export const AthleteProfile: React.FC = () => {
         {/* Personal Information */}
         <section className="bg-card rounded-2xl border border-border p-6 mb-6 animate-fade-in">
           <div className="flex items-center gap-3 mb-6">
-            <div className="h-10 w-10 rounded-xl bg-venture-blue/10 flex items-center justify-center">
-              <User className="h-5 w-5 text-venture-blue" />
+            <div className="h-10 w-10 rounded-xl bg-[hsl(210,100%,50%)]/10 flex items-center justify-center">
+              <User className="h-5 w-5 text-[hsl(210,100%,50%)]" />
             </div>
             <h2 className="text-lg font-semibold text-foreground">Personal Information</h2>
           </div>
@@ -376,7 +378,7 @@ export const AthleteProfile: React.FC = () => {
                   onClick={() => handleDivisionToggle(division.value)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     profile.target_divisions?.includes(division.value)
-                      ? 'bg-venture-blue text-primary-foreground'
+                      ? 'bg-[hsl(210,100%,50%)] text-white'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
