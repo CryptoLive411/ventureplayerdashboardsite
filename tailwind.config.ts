@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["DM Sans", "system-ui", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,6 +60,15 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        venture: {
+          navy: "hsl(var(--venture-navy))",
+          "navy-dark": "hsl(var(--venture-navy-dark))",
+          blue: "hsl(var(--venture-blue))",
+          "blue-light": "hsl(var(--venture-blue-light))",
+          gold: "hsl(var(--venture-gold))",
+          success: "hsl(var(--venture-success))",
+          warning: "hsl(var(--venture-warning))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,25 +77,31 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
+        pulse: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        shimmer: "shimmer 2s infinite",
+        pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
+      boxShadow: {
+        "venture": "0 4px 20px -2px rgba(30, 58, 95, 0.15)",
+        "venture-lg": "0 10px 40px -4px rgba(30, 58, 95, 0.2)",
+        "glow": "0 0 30px -5px hsl(var(--venture-blue) / 0.3)",
       },
     },
   },
