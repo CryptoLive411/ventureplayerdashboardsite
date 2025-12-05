@@ -7,11 +7,11 @@ import { Input } from '@/components/ui/input';
 import { 
   Users, 
   Search,
-  ArrowRight,
-  Filter,
   Loader2,
   Eye
 } from 'lucide-react';
+
+type PlayerStatus = 'active' | 'in_placement' | 'placed' | 'archived';
 
 interface Player {
   id: string;
@@ -21,9 +21,16 @@ interface Player {
   position: string | null;
   graduation_year: number | null;
   target_divisions: string[];
-  status: string;
+  status: PlayerStatus;
   target_intake: string | null;
 }
+
+const statusFilters: { value: string; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'in_placement', label: 'In Placement' },
+  { value: 'placed', label: 'Placed' },
+];
 
 export const PlayersList: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -40,7 +47,7 @@ export const PlayersList: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as PlayerStatus);
       } else {
         // Don't show archived players in the main list
         query = query.neq('status', 'archived');
@@ -49,7 +56,7 @@ export const PlayersList: React.FC = () => {
       const { data, error } = await query;
 
       if (!error && data) {
-        setPlayers(data);
+        setPlayers(data as Player[]);
       }
       setLoading(false);
     };
@@ -64,14 +71,14 @@ export const PlayersList: React.FC = () => {
     return fullName.includes(query) || email.includes(query);
   });
 
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
+  const getStatusBadge = (status: PlayerStatus) => {
+    const styles: Record<PlayerStatus, string> = {
       active: 'status-active',
       in_placement: 'status-in-placement',
       placed: 'status-placed',
       archived: 'status-archived',
     };
-    const labels: Record<string, string> = {
+    const labels: Record<PlayerStatus, string> = {
       active: 'Active',
       in_placement: 'In Placement',
       placed: 'Placed',
@@ -88,7 +95,7 @@ export const PlayersList: React.FC = () => {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-full">
-          <Loader2 className="h-8 w-8 animate-spin text-venture-blue" />
+          <Loader2 className="h-8 w-8 animate-spin text-[hsl(210,100%,50%)]" />
         </div>
       </DashboardLayout>
     );
@@ -116,15 +123,14 @@ export const PlayersList: React.FC = () => {
               />
             </div>
             <div className="flex gap-2">
-              {['all', 'active', 'in_placement', 'placed'].map((status) => (
+              {statusFilters.map((filter) => (
                 <Button
-                  key={status}
-                  variant={statusFilter === status ? 'venture' : 'outline'}
+                  key={filter.value}
+                  variant={statusFilter === filter.value ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setStatusFilter(status)}
-                  className="capitalize"
+                  onClick={() => setStatusFilter(filter.value)}
                 >
-                  {status === 'all' ? 'All' : status.replace('_', ' ')}
+                  {filter.label}
                 </Button>
               ))}
             </div>
@@ -163,7 +169,7 @@ export const PlayersList: React.FC = () => {
                     >
                       <td className="p-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-venture-blue/10 flex items-center justify-center text-venture-blue font-medium flex-shrink-0">
+                          <div className="h-10 w-10 rounded-full bg-[hsl(210,100%,50%)]/10 flex items-center justify-center text-[hsl(210,100%,50%)] font-medium flex-shrink-0">
                             {player.first_name[0]}{player.last_name[0]}
                           </div>
                           <div className="min-w-0">

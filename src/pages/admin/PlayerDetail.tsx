@@ -22,12 +22,14 @@ import {
   User,
   CheckSquare,
   GraduationCap,
-  Trophy,
   Plus,
   Trash2,
   Check
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+type PlayerStatus = 'active' | 'in_placement' | 'placed' | 'archived';
+type DivisionType = 'NCAA_D1' | 'NCAA_D2' | 'NCAA_D3' | 'NAIA' | 'NJCAA';
 
 interface Profile {
   id: string;
@@ -46,9 +48,9 @@ interface Profile {
   sat_score: number | null;
   budget_per_year: number | null;
   target_intake: string | null;
-  target_divisions: string[];
+  target_divisions: DivisionType[];
   highlight_video_url: string | null;
-  status: string;
+  status: PlayerStatus;
   additional_notes: string | null;
 }
 
@@ -97,7 +99,7 @@ export const PlayerDetail: React.FC = () => {
         return;
       }
 
-      setProfile(profileData);
+      setProfile(profileData as Profile);
 
       // Fetch checklist
       const { data: checklistData } = await supabase
@@ -123,7 +125,7 @@ export const PlayerDetail: React.FC = () => {
     fetchData();
   }, [id, navigate]);
 
-  const handleProfileChange = (field: keyof Profile, value: any) => {
+  const handleProfileChange = (field: keyof Profile, value: unknown) => {
     if (!profile) return;
     setProfile({ ...profile, [field]: value });
   };
@@ -230,7 +232,7 @@ export const PlayerDetail: React.FC = () => {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-full">
-          <Loader2 className="h-8 w-8 animate-spin text-venture-blue" />
+          <Loader2 className="h-8 w-8 animate-spin text-[hsl(210,100%,50%)]" />
         </div>
       </DashboardLayout>
     );
@@ -284,7 +286,7 @@ export const PlayerDetail: React.FC = () => {
                   <Label>Status</Label>
                   <Select
                     value={profile.status}
-                    onValueChange={(value) => handleProfileChange('status', value)}
+                    onValueChange={(value: PlayerStatus) => handleProfileChange('status', value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -427,8 +429,8 @@ export const PlayerDetail: React.FC = () => {
                       onClick={() => handleToggleChecklistItem(item)}
                       className={`h-6 w-6 rounded-md border-2 flex items-center justify-center transition-colors ${
                         item.status === 'completed'
-                          ? 'bg-venture-success border-venture-success text-white'
-                          : 'border-border hover:border-venture-blue'
+                          ? 'bg-[hsl(160,84%,39%)] border-[hsl(160,84%,39%)] text-white'
+                          : 'border-border hover:border-[hsl(210,100%,50%)]'
                       }`}
                     >
                       {item.status === 'completed' && <Check className="h-4 w-4" />}
