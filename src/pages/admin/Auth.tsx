@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/Logo';
 import { toast } from 'sonner';
-import { Eye, EyeOff, ArrowLeft, Loader2, Shield } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Loader2, Shield, UserPlus } from 'lucide-react';
 import { z } from 'zod';
 
 const signInSchema = z.object({
@@ -14,26 +15,39 @@ const signInSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+const signUpSchema = z.object({
+  firstName: z.string().min(1, 'First name is required').max(50),
+  lastName: z.string().min(1, 'Last name is required').max(50),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 export const AdminAuth: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, user, userRole, loading } = useAuth();
+  const { signIn, signUp, user, userRole, loading } = useAuth();
 
+  const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requestSubmitted, setRequestSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
 
   useEffect(() => {
     if (!loading && user) {
       if (userRole === 'admin') {
         navigate('/admin');
-      } else {
-        toast.error('Access denied. Admin credentials required.');
-        navigate('/');
       }
     }
   }, [user, userRole, loading, navigate]);
@@ -52,26 +66,89 @@ export const AdminAuth: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const result = signInSchema.safeParse(formData);
-      if (!result.success) {
-        const fieldErrors: Record<string, string> = {};
-        result.error.errors.forEach(err => {
-          if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message;
+      if (isSignUp) {
+        // Validate signup form
+        const result = signUpSchema.safeParse(formData);
+        if (!result.success) {
+          const fieldErrors: Record<string, string> = {};
+          result.error.errors.forEach(err => {
+            if (err.path[0]) {
+              fieldErrors[err.path[0] as string] = err.message;
+            }
+          });
+          setErrors(fieldErrors);
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Create account
+        const { error: signUpError } = await signUp(
+          formData.email,
+          formData.password,
+          formData.firstName,
+          formData.lastName
+        );
+
+        if (signUpError) {
+          if (signUpError.message.includes('already registered')) {
+            toast.error('This email is already registered.');
+          } else {
+            toast.error(signUpError.message);
           }
-        });
-        setErrors(fieldErrors);
-        setIsSubmitting(false);
-        return;
-      }
+          setIsSubmitting(false);
+          return;
+        }
 
-      const { error } = await signIn(formData.email, formData.password);
+        // Wait a moment for the user to be created, then get the session
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Get the user ID from the session
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData.session?.user?.id;
 
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          toast.error('Invalid email or password.');
-        } else {
-          toast.error(error.message);
+        if (userId) {
+          // Create pending admin request
+          const { error: requestError } = await supabase
+            .from('pending_admin_requests')
+            .insert({
+              user_id: userId,
+              email: formData.email,
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+            });
+
+          if (requestError) {
+            console.error('Error creating admin request:', requestError);
+          }
+        }
+
+        // Sign out the user after creating request
+        await supabase.auth.signOut();
+        setRequestSubmitted(true);
+        toast.success('Request submitted! You will be notified when approved.');
+      } else {
+        // Sign in flow
+        const result = signInSchema.safeParse(formData);
+        if (!result.success) {
+          const fieldErrors: Record<string, string> = {};
+          result.error.errors.forEach(err => {
+            if (err.path[0]) {
+              fieldErrors[err.path[0] as string] = err.message;
+            }
+          });
+          setErrors(fieldErrors);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const { error } = await signIn(formData.email, formData.password);
+
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            toast.error('Invalid email or password.');
+          } else {
+            toast.error(error.message);
+          }
         }
       }
     } catch (err) {
@@ -85,6 +162,30 @@ export const AdminAuth: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-venture-navy">
         <Loader2 className="h-8 w-8 animate-spin text-venture-gold" />
+      </div>
+    );
+  }
+
+  // Show success message after request submitted
+  if (requestSubmitted) {
+    return (
+      <div className="min-h-screen bg-venture-navy flex flex-col items-center justify-center px-6">
+        <div className="w-full max-w-md text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-venture-gold/20 mb-6">
+            <Shield className="w-10 h-10 text-venture-gold" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-4">
+            Request Submitted
+          </h1>
+          <p className="text-white/60 mb-8">
+            Your staff account request has been submitted. You will receive access once an administrator approves your request.
+          </p>
+          <Link to="/">
+            <Button className="bg-venture-gold hover:bg-venture-gold/90 text-venture-navy font-bold">
+              Return to Portal
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -118,26 +219,61 @@ export const AdminAuth: React.FC = () => {
           {/* Header */}
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-venture-gold mb-6">
-              <Shield className="w-8 h-8 text-venture-navy" />
+              {isSignUp ? <UserPlus className="w-8 h-8 text-venture-navy" /> : <Shield className="w-8 h-8 text-venture-navy" />}
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">
-              Staff Login
+              {isSignUp ? 'Request Staff Access' : 'Staff Login'}
             </h1>
             <p className="text-white/60">
-              Venture Sports Administration Portal
+              {isSignUp 
+                ? 'Create an account to request admin access'
+                : 'Venture Sports Administration Portal'}
             </p>
           </div>
 
           {/* Form */}
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
+              {isSignUp && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName" className="text-white/80">First Name</Label>
+                    <Input
+                      id="firstName"
+                      name="firstName"
+                      placeholder="John"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-venture-gold ${errors.firstName ? 'border-red-500' : ''}`}
+                    />
+                    {errors.firstName && (
+                      <p className="text-xs text-red-400">{errors.firstName}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName" className="text-white/80">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      placeholder="Doe"
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-venture-gold ${errors.lastName ? 'border-red-500' : ''}`}
+                    />
+                    {errors.lastName && (
+                      <p className="text-xs text-red-400">{errors.lastName}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-white/80">Email</Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="admin@venturesports.com"
+                  placeholder="staff@venturesports.com"
                   value={formData.email}
                   onChange={handleChange}
                   className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-venture-gold ${errors.email ? 'border-red-500' : ''}`}
@@ -176,6 +312,24 @@ export const AdminAuth: React.FC = () => {
                 )}
               </div>
 
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-white/80">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className={`bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-venture-gold ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-xs text-red-400">{errors.confirmPassword}</p>
+                  )}
+                </div>
+              )}
+
               <Button
                 type="submit"
                 className="w-full bg-venture-gold hover:bg-venture-gold/90 text-venture-navy font-bold py-6"
@@ -184,13 +338,26 @@ export const AdminAuth: React.FC = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Signing In...
+                    {isSignUp ? 'Submitting Request...' : 'Signing In...'}
                   </>
                 ) : (
-                  'Sign In to Dashboard'
+                  isSignUp ? 'Submit Request' : 'Sign In to Dashboard'
                 )}
               </Button>
             </form>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setErrors({});
+                }}
+                className="text-white/60 hover:text-white text-sm transition-colors"
+              >
+                {isSignUp ? 'Already have access? Sign in' : 'Need access? Request an account'}
+              </button>
+            </div>
           </div>
 
           {/* Logo */}

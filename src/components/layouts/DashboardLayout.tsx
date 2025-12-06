@@ -34,10 +34,10 @@ const athleteNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
-  { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { label: 'Active Players', href: '/admin/players', icon: Users },
+  { label: 'Player Profiles', href: '/admin', icon: LayoutDashboard },
+  { label: 'All Players', href: '/admin/players', icon: Users },
   { label: 'Archived', href: '/admin/archived', icon: Archive },
-  { label: 'Settings', href: '/admin/settings', icon: Settings },
+  { label: 'Staff Management', href: '/admin/staff', icon: Settings },
 ];
 
 interface DashboardLayoutProps {
