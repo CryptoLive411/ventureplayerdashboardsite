@@ -3,105 +3,134 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { 
   Users, 
-  UserCheck,
-  Archive,
-  Trophy,
+  UserPlus,
+  Clock,
+  CheckCircle,
   ArrowRight,
-  TrendingUp,
+  Search,
   Loader2
 } from 'lucide-react';
 
-interface DashboardStats {
-  activePlayers: number;
-  placedPlayers: number;
-  archivedPlayers: number;
-  totalOffers: number;
-}
-
-interface RecentPlayer {
+interface PlayerProfile {
   id: string;
   first_name: string;
   last_name: string;
+  email: string;
   position: string | null;
   status: string;
+  graduation_year: number | null;
   created_at: string;
 }
 
 export const AdminDashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats>({
-    activePlayers: 0,
-    placedPlayers: 0,
-    archivedPlayers: 0,
-    totalOffers: 0,
-  });
-  const [recentPlayers, setRecentPlayers] = useState<RecentPlayer[]>([]);
+  const [players, setPlayers] = useState<PlayerProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPlayers = async () => {
       try {
-        // Fetch player stats
-        const { data: profiles } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
-          .select('status');
+          .select('*')
+          .neq('status', 'archived')
+          .order('created_at', { ascending: false });
 
-        if (profiles) {
-          setStats({
-            activePlayers: profiles.filter(p => p.status === 'active' || p.status === 'in_placement').length,
-            placedPlayers: profiles.filter(p => p.status === 'placed').length,
-            archivedPlayers: profiles.filter(p => p.status === 'archived').length,
-            totalOffers: 0, // Will be updated below
-          });
-        }
-
-        // Fetch total offers
-        const { count: offerCount } = await supabase
-          .from('offers')
-          .select('*', { count: 'exact', head: true });
-
-        setStats(prev => ({ ...prev, totalOffers: offerCount || 0 }));
-
-        // Fetch recent players
-        const { data: recent } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, position, status, created_at')
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        if (recent) {
-          setRecentPlayers(recent);
-        }
+        if (error) throw error;
+        if (data) setPlayers(data);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error fetching players:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchPlayers();
   }, []);
 
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      active: 'status-active',
-      in_placement: 'status-in-placement',
-      placed: 'status-placed',
-      archived: 'status-archived',
-    };
-    const labels: Record<string, string> = {
-      active: 'Active',
-      in_placement: 'In Placement',
-      placed: 'Placed',
-      archived: 'Archived',
-    };
-    return (
-      <span className={`status-badge ${styles[status]}`}>
-        {labels[status] || status}
-      </span>
-    );
+  // Filter players by search query
+  const filteredPlayers = players.filter(player => {
+    const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
+    const email = player.email.toLowerCase();
+    const query = searchQuery.toLowerCase();
+    return fullName.includes(query) || email.includes(query);
+  });
+
+  // Categorize players
+  const newPlayers = filteredPlayers.filter(p => p.status === 'active');
+  const inProgressPlayers = filteredPlayers.filter(p => p.status === 'in_placement');
+  const placedPlayers = filteredPlayers.filter(p => p.status === 'placed');
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-blue-500';
+      case 'in_placement': return 'bg-amber-500';
+      case 'placed': return 'bg-emerald-500';
+      default: return 'bg-gray-500';
+    }
   };
+
+  const PlayerCard = ({ player }: { player: PlayerProfile }) => (
+    <Link
+      to={`/admin/players/${player.id}`}
+      className="flex items-center justify-between p-4 bg-card rounded-xl border border-border hover:border-venture-blue/30 hover:shadow-md transition-all group"
+    >
+      <div className="flex items-center gap-4">
+        <div className="h-12 w-12 rounded-full bg-venture-blue/10 flex items-center justify-center text-venture-blue font-semibold">
+          {player.first_name[0]}{player.last_name[0]}
+        </div>
+        <div>
+          <p className="font-semibold text-foreground group-hover:text-venture-blue transition-colors">
+            {player.first_name} {player.last_name}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {player.position || 'No position'} {player.graduation_year && `• Class of ${player.graduation_year}`}
+          </p>
+        </div>
+      </div>
+      <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-venture-blue transition-colors" />
+    </Link>
+  );
+
+  const CategorySection = ({ 
+    title, 
+    icon: Icon, 
+    players, 
+    emptyMessage,
+    iconBg,
+    iconColor 
+  }: { 
+    title: string; 
+    icon: React.ElementType; 
+    players: PlayerProfile[];
+    emptyMessage: string;
+    iconBg: string;
+    iconColor: string;
+  }) => (
+    <div className="bg-card rounded-2xl border border-border overflow-hidden">
+      <div className="p-5 border-b border-border flex items-center gap-3">
+        <div className={`h-10 w-10 rounded-xl ${iconBg} flex items-center justify-center`}>
+          <Icon className={`h-5 w-5 ${iconColor}`} />
+        </div>
+        <div>
+          <h2 className="font-semibold text-foreground">{title}</h2>
+          <p className="text-sm text-muted-foreground">{players.length} player{players.length !== 1 ? 's' : ''}</p>
+        </div>
+      </div>
+      <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+        {players.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">{emptyMessage}</p>
+        ) : (
+          players.map(player => (
+            <PlayerCard key={player.id} player={player} />
+          ))
+        )}
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -115,120 +144,82 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+      <div className="p-6 lg:p-8">
         {/* Header */}
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
-            Admin Dashboard
-          </h1>
-          <p className="text-muted-foreground">
-            Manage players and track recruitment progress.
-          </p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            {
-              label: 'Active Players',
-              value: stats.activePlayers,
-              icon: Users,
-              href: '/admin/players',
-              color: 'text-venture-blue',
-              bgColor: 'bg-venture-blue/10',
-            },
-            {
-              label: 'Placed',
-              value: stats.placedPlayers,
-              icon: UserCheck,
-              href: '/admin/players?status=placed',
-              color: 'text-emerald-600',
-              bgColor: 'bg-emerald-100',
-            },
-            {
-              label: 'Archived',
-              value: stats.archivedPlayers,
-              icon: Archive,
-              href: '/admin/archived',
-              color: 'text-muted-foreground',
-              bgColor: 'bg-muted',
-            },
-            {
-              label: 'Total Offers',
-              value: stats.totalOffers,
-              icon: Trophy,
-              href: '/admin/players',
-              color: 'text-amber-600',
-              bgColor: 'bg-amber-100',
-            },
-          ].map((stat, index) => (
-            <Link
-              key={stat.label}
-              to={stat.href}
-              className="stat-card hover-lift animate-scale-in"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className={`h-12 w-12 rounded-xl ${stat.bgColor} flex items-center justify-center`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <p className="text-2xl font-bold text-foreground mb-1">{stat.value}</p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-            </Link>
-          ))}
-        </div>
-
-        {/* Recent Players */}
-        <div className="bg-card rounded-2xl border border-border overflow-hidden animate-slide-up stagger-3">
-          <div className="p-6 border-b border-border flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Recent Players</h2>
-              <p className="text-sm text-muted-foreground">Latest registered athletes</p>
-            </div>
-            <Link to="/admin/players">
-              <Button variant="outline" size="sm">
-                View All
-                <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            </Link>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
+              Player Profiles
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {players.length} total players in the system
+            </p>
           </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search players..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-64"
+              />
+            </div>
+          </div>
+        </div>
 
-          {recentPlayers.length === 0 ? (
-            <div className="p-12 text-center">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No players yet</p>
+        {/* Stats Summary */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="bg-blue-50 dark:bg-blue-500/10 rounded-xl p-4 border border-blue-100 dark:border-blue-500/20">
+            <div className="flex items-center gap-3">
+              <UserPlus className="h-5 w-5 text-blue-600" />
+              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">New Players</span>
             </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {recentPlayers.map((player) => (
-                <Link
-                  key={player.id}
-                  to={`/admin/players/${player.id}`}
-                  className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-venture-blue/10 flex items-center justify-center text-venture-blue font-medium">
-                      {player.first_name[0]}{player.last_name[0]}
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {player.first_name} {player.last_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {player.position || 'Position not set'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {getStatusBadge(player.status)}
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </Link>
-              ))}
+            <p className="text-2xl font-bold text-blue-600 mt-2">{newPlayers.length}</p>
+          </div>
+          <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-4 border border-amber-100 dark:border-amber-500/20">
+            <div className="flex items-center gap-3">
+              <Clock className="h-5 w-5 text-amber-600" />
+              <span className="text-sm font-medium text-amber-900 dark:text-amber-100">In Progress</span>
             </div>
-          )}
+            <p className="text-2xl font-bold text-amber-600 mt-2">{inProgressPlayers.length}</p>
+          </div>
+          <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-4 border border-emerald-100 dark:border-emerald-500/20">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
+              <span className="text-sm font-medium text-emerald-900 dark:text-emerald-100">Placed</span>
+            </div>
+            <p className="text-2xl font-bold text-emerald-600 mt-2">{placedPlayers.length}</p>
+          </div>
+        </div>
+
+        {/* Player Categories */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          <CategorySection
+            title="New Players"
+            icon={UserPlus}
+            players={newPlayers}
+            emptyMessage="No new players"
+            iconBg="bg-blue-100 dark:bg-blue-500/20"
+            iconColor="text-blue-600"
+          />
+          <CategorySection
+            title="In Progress"
+            icon={Clock}
+            players={inProgressPlayers}
+            emptyMessage="No players in progress"
+            iconBg="bg-amber-100 dark:bg-amber-500/20"
+            iconColor="text-amber-600"
+          />
+          <CategorySection
+            title="Placed"
+            icon={CheckCircle}
+            players={placedPlayers}
+            emptyMessage="No placed players yet"
+            iconBg="bg-emerald-100 dark:bg-emerald-500/20"
+            iconColor="text-emerald-600"
+          />
         </div>
       </div>
     </DashboardLayout>

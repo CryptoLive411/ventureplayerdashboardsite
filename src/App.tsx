@@ -20,6 +20,7 @@ import AthleteOffers from "./pages/athlete/Offers";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
+import AdminAuth from "./pages/admin/Auth";
 import PlayersList from "./pages/admin/PlayersList";
 import PlayerDetail from "./pages/admin/PlayerDetail";
 import ArchivedPlayers from "./pages/admin/ArchivedPlayers";
@@ -37,6 +38,7 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/admin/auth" element={<AdminAuth />} />
 
             {/* Athlete Routes */}
             <Route

@@ -64,12 +64,12 @@ export const Landing: React.FC = () => {
               </div>
             </div>
 
-            <Link to="/auth?admin=true" className="block">
+            <Link to="/admin/auth" className="block">
               <Button 
                 className="w-full bg-venture-gold hover:bg-venture-gold/90 text-venture-navy py-6 text-lg font-bold flex items-center justify-center gap-3 rounded-xl transition-all hover:scale-[1.02]"
               >
                 <Shield className="w-5 h-5" />
-                Admin Dashboard
+                Staff Login
               </Button>
             </Link>
           </div>
