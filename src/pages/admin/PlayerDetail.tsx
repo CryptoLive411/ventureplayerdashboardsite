@@ -77,6 +77,7 @@ interface ChecklistItem {
   status: string;
   due_date: string | null;
   completed_at: string | null;
+  assigned_to_player: boolean;
 }
 
 interface CollegeTracking {
@@ -557,6 +558,42 @@ export const PlayerDetail: React.FC = () => {
     }
   };
 
+  const handleToggleAssignment = async (item: ChecklistItem) => {
+    const newValue = !item.assigned_to_player;
+    const { error } = await supabase
+      .from('checklist_items')
+      .update({ assigned_to_player: newValue })
+      .eq('id', item.id);
+
+    if (error) {
+      toast.error('Failed to update assignment');
+    } else {
+      setChecklist(checklist.map(c => 
+        c.id === item.id ? { ...c, assigned_to_player: newValue } : c
+      ));
+      toast.success(newValue ? 'Assigned to player' : 'Unassigned from player');
+    }
+  };
+
+  const handleNudgePlayer = async (item: ChecklistItem) => {
+    if (!profile?.user_id || !id) return;
+
+    const { error } = await supabase.from('notifications').insert({
+      user_id: profile.user_id,
+      player_id: id,
+      type: 'checklist_reminder',
+      title: 'Action Required',
+      content: `Reminder: Please complete "${item.title}" as soon as possible.`,
+      link: '/dashboard/checklist',
+    });
+
+    if (error) {
+      toast.error('Failed to send reminder');
+    } else {
+      toast.success('Reminder sent to player');
+    }
+  };
+
   const unreadNotifications = notifications.filter(n => !n.read_at).length;
 
   if (loading) {
@@ -887,34 +924,64 @@ export const PlayerDetail: React.FC = () => {
                 checklist.map((item) => (
                   <div
                     key={item.id}
-                    className="bg-card rounded-xl border border-border p-4 flex items-center gap-4"
+                    className="bg-card rounded-xl border border-border p-4"
                   >
-                    <button
-                      onClick={() => handleToggleChecklistItem(item)}
-                      className={`h-6 w-6 rounded-md border-2 flex items-center justify-center transition-colors ${
-                        item.status === 'completed'
-                          ? 'bg-emerald-500 border-emerald-500 text-white'
-                          : 'border-border hover:border-primary'
-                      }`}
-                    >
-                      {item.status === 'completed' && <Check className="h-4 w-4" />}
-                    </button>
-                    <div className="flex-1">
-                      <p className={`font-medium ${item.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                        {item.title}
-                      </p>
-                      {item.description && (
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
-                      )}
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => handleToggleChecklistItem(item)}
+                        className={`h-6 w-6 rounded-md border-2 flex items-center justify-center transition-colors shrink-0 ${
+                          item.status === 'completed'
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : 'border-border hover:border-primary'
+                        }`}
+                      >
+                        {item.status === 'completed' && <Check className="h-4 w-4" />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium ${item.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          {item.title}
+                        </p>
+                        {item.description && (
+                          <p className="text-sm text-muted-foreground">{item.description}</p>
+                        )}
+                        {item.assigned_to_player && (
+                          <span className="inline-flex items-center gap-1 mt-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            <User className="h-3 w-3" />
+                            Assigned to player
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          variant={item.assigned_to_player ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => handleToggleAssignment(item)}
+                          title={item.assigned_to_player ? "Unassign from player" : "Assign to player"}
+                        >
+                          <User className="h-4 w-4" />
+                        </Button>
+                        {item.assigned_to_player && item.status !== 'completed' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleNudgePlayer(item)}
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                            title="Send reminder to player"
+                          >
+                            <Bell className="h-4 w-4 mr-1" />
+                            Nudge
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteChecklistItem(item.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteChecklistItem(item.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 ))
               )}
