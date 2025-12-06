@@ -2,9 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Loader2, CheckCircle2, Circle, Clock } from 'lucide-react';
+import { Loader2, CheckCircle2, Circle, Clock, ChevronDown, ChevronUp, StickyNote, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 
 interface ChecklistItem {
   id: string;
@@ -14,33 +17,55 @@ interface ChecklistItem {
   due_date: string | null;
   completed_at: string | null;
   assigned_to_player: boolean | null;
+  player_notes: string | null;
+  player_files: string[] | null;
+}
+
+interface Profile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  user_id: string;
 }
 
 export const AthleteChecklist: React.FC = () => {
   const { user } = useAuth();
   const [items, setItems] = useState<ChecklistItem[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+  const [playerNotes, setPlayerNotes] = useState<Record<string, string>>({});
+  const [savingNotes, setSavingNotes] = useState<Record<string, boolean>>({});
+  const [completingTask, setCompletingTask] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchChecklist = async () => {
       if (!user) return;
 
       // First get the profile
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, first_name, last_name, user_id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (profile) {
+      if (profileData) {
+        setProfile(profileData);
+        
         const { data, error } = await supabase
           .from('checklist_items')
           .select('*')
-          .eq('player_id', profile.id)
+          .eq('player_id', profileData.id)
           .order('sort_order', { ascending: true });
 
         if (!error && data) {
           setItems(data);
+          // Initialize player notes
+          const notes: Record<string, string> = {};
+          data.forEach(item => {
+            notes[item.id] = item.player_notes || '';
+          });
+          setPlayerNotes(notes);
         }
       }
       setLoading(false);
@@ -48,6 +73,83 @@ export const AthleteChecklist: React.FC = () => {
 
     fetchChecklist();
   }, [user]);
+
+  const handleSaveNotes = async (itemId: string) => {
+    if (!profile) return;
+    
+    setSavingNotes(prev => ({ ...prev, [itemId]: true }));
+    
+    try {
+      const { error } = await supabase
+        .from('checklist_items')
+        .update({ player_notes: playerNotes[itemId] })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      setItems(items.map(item => 
+        item.id === itemId ? { ...item, player_notes: playerNotes[itemId] } : item
+      ));
+      toast.success('Notes saved');
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      toast.error('Failed to save notes');
+    } finally {
+      setSavingNotes(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  const handleCompleteTask = async (item: ChecklistItem) => {
+    if (!profile || !item.assigned_to_player) return;
+
+    setCompletingTask(prev => ({ ...prev, [item.id]: true }));
+
+    try {
+      const { error } = await supabase
+        .from('checklist_items')
+        .update({ 
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          completed_by: user?.id
+        })
+        .eq('id', item.id);
+
+      if (error) throw error;
+
+      // Notify all admins
+      const { data: admins } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      if (admins) {
+        const notificationPromises = admins.map(admin =>
+          supabase.from('notifications').insert({
+            user_id: admin.user_id,
+            player_id: profile.id,
+            type: 'task_completed',
+            title: `${profile.first_name} ${profile.last_name} completed a task`,
+            content: `Task: ${item.title}`,
+            link: `/admin/players/${profile.id}`,
+          })
+        );
+        await Promise.all(notificationPromises);
+      }
+
+      // Update local state
+      setItems(items.map(i => 
+        i.id === item.id 
+          ? { ...i, status: 'completed', completed_at: new Date().toISOString() } 
+          : i
+      ));
+      toast.success('Task marked as complete!');
+    } catch (error) {
+      console.error('Error completing task:', error);
+      toast.error('Failed to complete task');
+    } finally {
+      setCompletingTask(prev => ({ ...prev, [item.id]: false }));
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -127,61 +229,133 @@ export const AthleteChecklist: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {items.map((item, index) => (
-              <div
-                key={item.id}
-                className="bg-card rounded-xl border border-border p-5 animate-slide-up"
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 mt-0.5">
-                    {getStatusIcon(item.status)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className={`font-medium ${
-                          item.status === 'completed' 
-                            ? 'text-muted-foreground line-through' 
-                            : 'text-foreground'
-                        }`}>
-                          {item.title}
-                        </h3>
-                        {item.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {item.description}
-                          </p>
-                        )}
+            {items.map((item, index) => {
+              const isExpanded = expandedItemId === item.id;
+              const canComplete = item.assigned_to_player && item.status !== 'completed';
+              
+              return (
+                <div
+                  key={item.id}
+                  className="bg-card rounded-xl border border-border overflow-hidden animate-slide-up"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <div className="p-5">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 mt-0.5">
+                        {getStatusIcon(item.status)}
                       </div>
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0 ${
-                        item.status === 'completed'
-                          ? 'bg-venture-success/10 text-emerald-700'
-                          : item.status === 'in_progress'
-                          ? 'bg-venture-warning/10 text-amber-700'
-                          : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {getStatusLabel(item.status)}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <h3 className={`font-medium ${
+                              item.status === 'completed' 
+                                ? 'text-muted-foreground line-through' 
+                                : 'text-foreground'
+                            }`}>
+                              {item.title}
+                            </h3>
+                            {item.description && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0 ${
+                              item.status === 'completed'
+                                ? 'bg-venture-success/10 text-emerald-700'
+                                : item.status === 'in_progress'
+                                ? 'bg-venture-warning/10 text-amber-700'
+                                : 'bg-muted text-muted-foreground'
+                            }`}>
+                              {getStatusLabel(item.status)}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          {item.completed_at && (
+                            <p className="text-xs text-muted-foreground">
+                              Completed on {format(new Date(item.completed_at), 'MMM d, yyyy')}
+                            </p>
+                          )}
+                          {item.due_date && item.status !== 'completed' && (
+                            <p className="text-xs text-muted-foreground">
+                              Due: {format(new Date(item.due_date), 'MMM d, yyyy')}
+                            </p>
+                          )}
+                          {item.assigned_to_player && (
+                            <Badge variant="outline" className="text-xs border-venture-blue/30 text-venture-blue bg-venture-blue/10">
+                              Assigned to You
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Actions Row */}
+                        <div className="flex items-center gap-2 mt-3">
+                          {canComplete && (
+                            <Button
+                              size="sm"
+                              variant="venture"
+                              onClick={() => handleCompleteTask(item)}
+                              disabled={completingTask[item.id]}
+                            >
+                              {completingTask[item.id] ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <Check className="h-4 w-4 mr-2" />
+                              )}
+                              Mark Complete
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
+                          >
+                            <StickyNote className="h-4 w-4 mr-2" />
+                            {item.player_notes ? 'View Notes' : 'Add Notes'}
+                            {isExpanded ? (
+                              <ChevronUp className="h-4 w-4 ml-1" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 ml-1" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    {item.completed_at && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Completed on {format(new Date(item.completed_at), 'MMM d, yyyy')}
-                      </p>
-                    )}
-                    {item.due_date && item.status !== 'completed' && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Due: {format(new Date(item.due_date), 'MMM d, yyyy')}
-                      </p>
-                    )}
-                    {item.assigned_to_player && (
-                      <Badge variant="outline" className="mt-2 text-xs border-venture-blue/30 text-venture-blue bg-venture-blue/10">
-                        Assigned to You
-                      </Badge>
-                    )}
                   </div>
+
+                  {/* Expanded Notes Section */}
+                  {isExpanded && (
+                    <div className="px-5 pb-5 pt-0 border-t border-border bg-muted/30">
+                      <div className="pt-4">
+                        <label className="text-sm font-medium text-foreground mb-2 block">
+                          Your Notes
+                        </label>
+                        <Textarea
+                          placeholder="Add notes, questions, or updates about this task..."
+                          value={playerNotes[item.id] || ''}
+                          onChange={(e) => setPlayerNotes(prev => ({ ...prev, [item.id]: e.target.value }))}
+                          className="min-h-[100px] resize-none"
+                        />
+                        <Button
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => handleSaveNotes(item.id)}
+                          disabled={savingNotes[item.id]}
+                        >
+                          {savingNotes[item.id] ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Save Notes
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

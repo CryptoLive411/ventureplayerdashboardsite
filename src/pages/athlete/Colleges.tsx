@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
@@ -60,7 +60,6 @@ export const AthleteColleges: React.FC = () => {
   const [expandedCollegeId, setExpandedCollegeId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState<Record<string, string>>({});
   const [sending, setSending] = useState<Record<string, boolean>>({});
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchColleges = async () => {
@@ -109,13 +108,7 @@ export const AthleteColleges: React.FC = () => {
     fetchColleges();
   }, [user]);
 
-  useEffect(() => {
-    if (expandedCollegeId && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [expandedCollegeId, collegeMessages]);
-
-  const handleSendMessage = async (collegeId: string) => {
+  const handleSendMessage = useCallback(async (collegeId: string) => {
     const content = newMessage[collegeId]?.trim();
     if (!content || !profileId || !user) return;
 
@@ -176,11 +169,15 @@ export const AthleteColleges: React.FC = () => {
     } finally {
       setSending(prev => ({ ...prev, [collegeId]: false }));
     }
-  };
+  }, [newMessage, profileId, user, colleges]);
 
-  const getMessageCount = (collegeId: string) => {
-    return collegeMessages[collegeId]?.length || 0;
-  };
+  const handleMessageChange = useCallback((collegeId: string, value: string) => {
+    setNewMessage(prev => ({ ...prev, [collegeId]: value }));
+  }, []);
+
+  const handleToggleExpand = useCallback((collegeId: string) => {
+    setExpandedCollegeId(prev => prev === collegeId ? null : collegeId);
+  }, []);
 
   // Group colleges by status
   const interestedColleges = colleges.filter(c => ['interested', 'communication', 'offer_made'].includes(c.status));
@@ -196,158 +193,6 @@ export const AthleteColleges: React.FC = () => {
       </DashboardLayout>
     );
   }
-
-  const CollegeCard = ({ college, index }: { college: CollegeTracking; index: number }) => {
-    const isExpanded = expandedCollegeId === college.id;
-    const messages = collegeMessages[college.id] || [];
-    const messageCount = getMessageCount(college.id);
-
-    return (
-      <div
-        className="bg-card rounded-xl border border-border overflow-hidden hover:shadow-md transition-shadow animate-slide-up"
-        style={{ animationDelay: `${index * 0.05}s` }}
-      >
-        <div className="p-5">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-lg bg-venture-blue/10 flex items-center justify-center flex-shrink-0">
-                <GraduationCap className="h-5 w-5 text-venture-blue" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">{college.college_name}</h3>
-                {(college.city || college.state) && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {[college.city, college.state].filter(Boolean).join(', ')}
-                  </p>
-                )}
-              </div>
-            </div>
-            <Badge className={`${statusColors[college.status]} border-0`}>
-              {statusLabels[college.status]}
-            </Badge>
-          </div>
-
-          {college.division && (
-            <p className="text-sm text-muted-foreground mb-3">
-              {college.division.replace('_', ' ')}
-            </p>
-          )}
-
-          {college.coach_name && (
-            <div className="bg-muted/50 rounded-lg p-3 mb-3">
-              <p className="text-sm font-medium text-foreground mb-1">{college.coach_name}</p>
-              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                {college.coach_email && (
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    {college.coach_email}
-                  </span>
-                )}
-                {college.coach_phone && (
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    {college.coach_phone}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {college.notes && (
-            <p className="text-sm text-muted-foreground mb-3">{college.notes}</p>
-          )}
-
-          {college.last_action_date && (
-            <p className="text-xs text-muted-foreground mb-3">
-              Last action: {format(new Date(college.last_action_date), 'MMM d, yyyy')}
-            </p>
-          )}
-
-          {/* Messages Toggle */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-between"
-            onClick={() => setExpandedCollegeId(isExpanded ? null : college.id)}
-          >
-            <span className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Messages {messageCount > 0 && `(${messageCount})`}
-            </span>
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-        </div>
-
-        {/* Messages Section */}
-        {isExpanded && (
-          <div className="border-t border-border bg-muted/30 p-4">
-            <div className="space-y-3 max-h-[300px] overflow-y-auto mb-4">
-              {messages.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No messages yet</p>
-                  <p className="text-xs">Send a message about this school</p>
-                </div>
-              ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`max-w-[85%] rounded-xl px-3 py-2 ${
-                      message.sender_type === 'player'
-                        ? 'bg-venture-blue text-white ml-auto rounded-br-sm'
-                        : 'bg-card border border-border rounded-bl-sm'
-                    }`}
-                  >
-                    {message.sender_type !== 'player' && (
-                      <p className="text-xs font-medium text-venture-blue mb-1">Venture Sports</p>
-                    )}
-                    <p className={`text-sm ${message.sender_type === 'player' ? 'text-white' : 'text-foreground'}`}>
-                      {message.content}
-                    </p>
-                    <p className={`text-xs mt-1 ${
-                      message.sender_type === 'player' ? 'text-white/70' : 'text-muted-foreground'
-                    }`}>
-                      {format(new Date(message.created_at), 'MMM d, h:mm a')}
-                    </p>
-                  </div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Message Input */}
-            <div className="flex gap-2">
-              <Textarea
-                value={newMessage[college.id] || ''}
-                onChange={(e) => setNewMessage(prev => ({ ...prev, [college.id]: e.target.value }))}
-                placeholder="Type your message..."
-                className="min-h-[40px] max-h-24 resize-none text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage(college.id);
-                  }
-                }}
-              />
-              <Button
-                size="sm"
-                onClick={() => handleSendMessage(college.id)}
-                disabled={!newMessage[college.id]?.trim() || sending[college.id]}
-                className="px-3"
-              >
-                {sending[college.id] ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <DashboardLayout>
@@ -391,7 +236,19 @@ export const AthleteColleges: React.FC = () => {
                 </h2>
                 <div className="grid gap-4 md:grid-cols-2">
                   {interestedColleges.map((college, index) => (
-                    <CollegeCard key={college.id} college={college} index={index} />
+                    <CollegeCard
+                      key={college.id}
+                      college={college}
+                      index={index}
+                      isExpanded={expandedCollegeId === college.id}
+                      messages={collegeMessages[college.id] || []}
+                      messageCount={collegeMessages[college.id]?.length || 0}
+                      newMessage={newMessage[college.id] || ''}
+                      sending={sending[college.id] || false}
+                      onToggleExpand={handleToggleExpand}
+                      onMessageChange={handleMessageChange}
+                      onSendMessage={handleSendMessage}
+                    />
                   ))}
                 </div>
               </section>
@@ -406,7 +263,19 @@ export const AthleteColleges: React.FC = () => {
                 </h2>
                 <div className="grid gap-4 md:grid-cols-2">
                   {contactedColleges.map((college, index) => (
-                    <CollegeCard key={college.id} college={college} index={index} />
+                    <CollegeCard
+                      key={college.id}
+                      college={college}
+                      index={index}
+                      isExpanded={expandedCollegeId === college.id}
+                      messages={collegeMessages[college.id] || []}
+                      messageCount={collegeMessages[college.id]?.length || 0}
+                      newMessage={newMessage[college.id] || ''}
+                      sending={sending[college.id] || false}
+                      onToggleExpand={handleToggleExpand}
+                      onMessageChange={handleMessageChange}
+                      onSendMessage={handleSendMessage}
+                    />
                   ))}
                 </div>
               </section>
@@ -421,7 +290,19 @@ export const AthleteColleges: React.FC = () => {
                 </h2>
                 <div className="grid gap-4 md:grid-cols-2">
                   {otherColleges.map((college, index) => (
-                    <CollegeCard key={college.id} college={college} index={index} />
+                    <CollegeCard
+                      key={college.id}
+                      college={college}
+                      index={index}
+                      isExpanded={expandedCollegeId === college.id}
+                      messages={collegeMessages[college.id] || []}
+                      messageCount={collegeMessages[college.id]?.length || 0}
+                      newMessage={newMessage[college.id] || ''}
+                      sending={sending[college.id] || false}
+                      onToggleExpand={handleToggleExpand}
+                      onMessageChange={handleMessageChange}
+                      onSendMessage={handleSendMessage}
+                    />
                   ))}
                 </div>
               </section>
@@ -432,5 +313,188 @@ export const AthleteColleges: React.FC = () => {
     </DashboardLayout>
   );
 };
+
+// Extracted CollegeCard component to prevent re-renders
+interface CollegeCardProps {
+  college: CollegeTracking;
+  index: number;
+  isExpanded: boolean;
+  messages: CollegeMessage[];
+  messageCount: number;
+  newMessage: string;
+  sending: boolean;
+  onToggleExpand: (collegeId: string) => void;
+  onMessageChange: (collegeId: string, value: string) => void;
+  onSendMessage: (collegeId: string) => void;
+}
+
+const CollegeCard: React.FC<CollegeCardProps> = React.memo(({
+  college,
+  index,
+  isExpanded,
+  messages,
+  messageCount,
+  newMessage,
+  sending,
+  onToggleExpand,
+  onMessageChange,
+  onSendMessage,
+}) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isExpanded && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [isExpanded, messages.length]);
+
+  return (
+    <div
+      className="bg-card rounded-xl border border-border overflow-hidden hover:shadow-md transition-shadow animate-slide-up"
+      style={{ animationDelay: `${index * 0.05}s` }}
+    >
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-lg bg-venture-blue/10 flex items-center justify-center flex-shrink-0">
+              <GraduationCap className="h-5 w-5 text-venture-blue" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">{college.college_name}</h3>
+              {(college.city || college.state) && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {[college.city, college.state].filter(Boolean).join(', ')}
+                </p>
+              )}
+            </div>
+          </div>
+          <Badge className={`${statusColors[college.status]} border-0`}>
+            {statusLabels[college.status]}
+          </Badge>
+        </div>
+
+        {college.division && (
+          <p className="text-sm text-muted-foreground mb-3">
+            {college.division.replace('_', ' ')}
+          </p>
+        )}
+
+        {college.coach_name && (
+          <div className="bg-muted/50 rounded-lg p-3 mb-3">
+            <p className="text-sm font-medium text-foreground mb-1">{college.coach_name}</p>
+            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+              {college.coach_email && (
+                <span className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  {college.coach_email}
+                </span>
+              )}
+              {college.coach_phone && (
+                <span className="flex items-center gap-1">
+                  <Phone className="h-3 w-3" />
+                  {college.coach_phone}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {college.notes && (
+          <p className="text-sm text-muted-foreground mb-3">{college.notes}</p>
+        )}
+
+        {college.last_action_date && (
+          <p className="text-xs text-muted-foreground mb-3">
+            Last action: {format(new Date(college.last_action_date), 'MMM d, yyyy')}
+          </p>
+        )}
+
+        {/* Messages Toggle */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full justify-between"
+          onClick={() => onToggleExpand(college.id)}
+        >
+          <span className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Messages {messageCount > 0 && `(${messageCount})`}
+          </span>
+          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
+      </div>
+
+      {/* Messages Section */}
+      {isExpanded && (
+        <div className="border-t border-border bg-muted/30 p-4">
+          <div className="space-y-3 max-h-[300px] overflow-y-auto mb-4">
+            {messages.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No messages yet</p>
+                <p className="text-xs">Send a message about this school</p>
+              </div>
+            ) : (
+              messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`max-w-[85%] rounded-xl px-3 py-2 ${
+                    message.sender_type === 'player'
+                      ? 'bg-venture-blue text-white ml-auto rounded-br-sm'
+                      : 'bg-card border border-border rounded-bl-sm'
+                  }`}
+                >
+                  {message.sender_type !== 'player' && (
+                    <p className="text-xs font-medium text-venture-blue mb-1">Venture Sports</p>
+                  )}
+                  <p className={`text-sm ${message.sender_type === 'player' ? 'text-white' : 'text-foreground'}`}>
+                    {message.content}
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    message.sender_type === 'player' ? 'text-white/70' : 'text-muted-foreground'
+                  }`}>
+                    {format(new Date(message.created_at), 'MMM d, h:mm a')}
+                  </p>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Message Input */}
+          <div className="flex gap-2">
+            <Textarea
+              value={newMessage}
+              onChange={(e) => onMessageChange(college.id, e.target.value)}
+              placeholder="Type your message..."
+              className="min-h-[40px] max-h-24 resize-none text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  onSendMessage(college.id);
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              onClick={() => onSendMessage(college.id)}
+              disabled={!newMessage.trim() || sending}
+              className="px-3"
+            >
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+CollegeCard.displayName = 'CollegeCard';
 
 export default AthleteColleges;

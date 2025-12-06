@@ -178,7 +178,13 @@ export const Notifications: React.FC = () => {
       case 'admin_note':
         return <StickyNote className="h-4 w-4" />;
       case 'new_message':
+      case 'player_message':
+      case 'college_message':
         return <MessageSquare className="h-4 w-4" />;
+      case 'task_completed':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'commitment':
+        return <Bell className="h-4 w-4" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
@@ -189,7 +195,13 @@ export const Notifications: React.FC = () => {
       case 'admin_note':
         return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
       case 'new_message':
+      case 'player_message':
+      case 'college_message':
         return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      case 'task_completed':
+        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+      case 'commitment':
+        return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
       default:
         return 'bg-muted text-muted-foreground';
     }
@@ -253,7 +265,10 @@ export const Notifications: React.FC = () => {
                 <SelectContent>
                   <SelectItem value="all">All Notifications</SelectItem>
                   <SelectItem value="admin_note">Admin Notes</SelectItem>
-                  <SelectItem value="new_message">Player Messages</SelectItem>
+                  <SelectItem value="player_message">Player Messages</SelectItem>
+                  <SelectItem value="college_message">College Messages</SelectItem>
+                  <SelectItem value="task_completed">Task Completions</SelectItem>
+                  <SelectItem value="commitment">Commitments</SelectItem>
                 </SelectContent>
               </Select>
             </div>
