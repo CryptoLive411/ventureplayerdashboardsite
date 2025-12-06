@@ -20,7 +20,6 @@ import {
   ChevronRight,
   Bell,
   MessageSquare,
-  FileText,
 } from 'lucide-react';
 
 interface NavItem {
@@ -44,7 +43,6 @@ const adminNavItems: NavItem[] = [
   { label: 'Player Profiles', href: '/admin', icon: LayoutDashboard },
   { label: 'All Players', href: '/admin/players', icon: Users },
   { label: 'Notifications', href: '/admin/notifications', icon: Bell, showBadge: true },
-  { label: 'Documents', href: '/admin/documents', icon: FileText },
   { label: 'Archived', href: '/admin/archived', icon: Archive },
   { label: 'Staff Management', href: '/admin/staff', icon: Settings },
 ];

@@ -28,7 +28,6 @@ import PlayerDetail from "./pages/admin/PlayerDetail";
 import ArchivedPlayers from "./pages/admin/ArchivedPlayers";
 import StaffManagement from "./pages/admin/StaffManagement";
 import AdminNotifications from "./pages/admin/Notifications";
-import AdminDocuments from "./pages/admin/Documents";
 
 const queryClient = new QueryClient();
 
@@ -149,14 +148,6 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminNotifications />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/documents"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminDocuments />
                 </ProtectedRoute>
               }
             />
