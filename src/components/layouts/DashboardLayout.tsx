@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  showBadge?: boolean;
 }
 
 const athleteNavItems: NavItem[] = [
@@ -37,7 +39,7 @@ const athleteNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { label: 'Player Profiles', href: '/admin', icon: LayoutDashboard },
   { label: 'All Players', href: '/admin/players', icon: Users },
-  { label: 'Notifications', href: '/admin/notifications', icon: Bell },
+  { label: 'Notifications', href: '/admin/notifications', icon: Bell, showBadge: true },
   { label: 'Archived', href: '/admin/archived', icon: Archive },
   { label: 'Staff Management', href: '/admin/staff', icon: Settings },
 ];
@@ -51,9 +53,40 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   const isAdmin = userRole === 'admin';
   const navItems = isAdmin ? adminNavItems : athleteNavItems;
+
+  // Fetch unread notification count for admins
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const fetchNotificationCount = async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .is('read_at', null);
+      
+      setNotificationCount(count || 0);
+    };
+
+    fetchNotificationCount();
+
+    // Subscribe to new notifications
+    const channel = supabase
+      .channel('notification-count')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        () => fetchNotificationCount()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAdmin]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -100,12 +133,17 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                     to={item.href}
                     onClick={() => setSidebarOpen(false)}
                     className={cn(
-                      'nav-link',
+                      'nav-link relative',
                       isActive && 'nav-link-active'
                     )}
                   >
                     <item.icon className="h-5 w-5" />
                     <span>{item.label}</span>
+                    {item.showBadge && notificationCount > 0 && (
+                      <span className="absolute right-8 bg-destructive text-destructive-foreground text-xs font-medium rounded-full h-5 min-w-5 px-1.5 flex items-center justify-center">
+                        {notificationCount > 99 ? '99+' : notificationCount}
+                      </span>
+                    )}
                     {isActive && (
                       <ChevronRight className="h-4 w-4 ml-auto" />
                     )}
