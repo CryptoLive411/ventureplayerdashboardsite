@@ -46,10 +46,11 @@ export const Notifications: React.FC = () => {
 
   useEffect(() => {
     const fetchNotifications = async () => {
-      // Get all notifications (admin can see all)
+      // Get all notifications (admin can see all, except player-specific reminders)
       const { data: notificationsData, error } = await supabase
         .from('notifications')
         .select('*')
+        .not('type', 'eq', 'college_reminder')
         .order('created_at', { ascending: false });
 
       if (error) {
