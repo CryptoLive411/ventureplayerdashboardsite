@@ -964,14 +964,15 @@ export const PlayerDetail: React.FC = () => {
                         </p>
                       </div>
                       <Select
-                        value={college.status}
+                        value={college.status || undefined}
                         onValueChange={async (value) => {
+                          const newStatus = value as "not_contacted" | "contacted" | "interested" | "communication" | "offer_made" | "not_interested" | "rejected";
                           await supabase
                             .from('college_tracking')
-                            .update({ status: value })
+                            .update({ status: newStatus })
                             .eq('id', college.id);
                           setColleges(colleges.map(c => 
-                            c.id === college.id ? { ...c, status: value } : c
+                            c.id === college.id ? { ...c, status: newStatus } : c
                           ));
                           toast.success('Status updated');
                         }}
