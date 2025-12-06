@@ -17,6 +17,8 @@ import AthleteProfile from "./pages/athlete/Profile";
 import AthleteChecklist from "./pages/athlete/Checklist";
 import AthleteColleges from "./pages/athlete/Colleges";
 import AthleteOffers from "./pages/athlete/Offers";
+import AthleteNotifications from "./pages/athlete/Notifications";
+import AthleteMessages from "./pages/athlete/Messages";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -80,6 +82,22 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="athlete">
                   <AthleteOffers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/notifications"
+              element={
+                <ProtectedRoute requiredRole="athlete">
+                  <AthleteNotifications />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/messages"
+              element={
+                <ProtectedRoute requiredRole="athlete">
+                  <AthleteMessages />
                 </ProtectedRoute>
               }
             />
