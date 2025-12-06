@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Loader2, CheckCircle2, Circle, Clock, ChevronDown, ChevronUp, StickyNote, Check } from 'lucide-react';
+import { Loader2, CheckCircle2, Circle, Clock, ChevronDown, ChevronUp, StickyNote, Check, Upload, FileText, X, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,14 @@ interface ChecklistItem {
   player_files: string[] | null;
 }
 
+interface PlayerDocument {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number | null;
+  created_at: string;
+}
+
 interface Profile {
   id: string;
   first_name: string;
@@ -37,6 +45,9 @@ export const AthleteChecklist: React.FC = () => {
   const [playerNotes, setPlayerNotes] = useState<Record<string, string>>({});
   const [savingNotes, setSavingNotes] = useState<Record<string, boolean>>({});
   const [completingTask, setCompletingTask] = useState<Record<string, boolean>>({});
+  const [itemDocuments, setItemDocuments] = useState<Record<string, PlayerDocument[]>>({});
+  const [uploadingFile, setUploadingFile] = useState<Record<string, boolean>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     const fetchChecklist = async () => {
@@ -66,6 +77,24 @@ export const AthleteChecklist: React.FC = () => {
             notes[item.id] = item.player_notes || '';
           });
           setPlayerNotes(notes);
+
+          // Fetch documents for each item
+          const { data: docs } = await supabase
+            .from('player_documents')
+            .select('*')
+            .eq('player_id', profileData.id)
+            .not('checklist_item_id', 'is', null);
+
+          if (docs) {
+            const docsByItem: Record<string, PlayerDocument[]> = {};
+            docs.forEach((doc: PlayerDocument & { checklist_item_id: string }) => {
+              if (!docsByItem[doc.checklist_item_id]) {
+                docsByItem[doc.checklist_item_id] = [];
+              }
+              docsByItem[doc.checklist_item_id].push(doc);
+            });
+            setItemDocuments(docsByItem);
+          }
         }
       }
       setLoading(false);
@@ -96,6 +125,104 @@ export const AthleteChecklist: React.FC = () => {
       toast.error('Failed to save notes');
     } finally {
       setSavingNotes(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
+
+  const handleFileUpload = async (itemId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !profile || !user) return;
+
+    setUploadingFile(prev => ({ ...prev, [itemId]: true }));
+
+    try {
+      const fileName = `${Date.now()}-${file.name}`;
+      const filePath = `${profile.id}/${itemId}/${fileName}`;
+
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('player-documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Save metadata
+      const { data: docData, error: dbError } = await supabase
+        .from('player_documents')
+        .insert({
+          player_id: profile.id,
+          checklist_item_id: itemId,
+          file_name: file.name,
+          file_path: filePath,
+          file_size: file.size,
+          file_type: file.type,
+          uploaded_by: user.id,
+          uploaded_by_type: 'player',
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      // Update local state
+      setItemDocuments(prev => ({
+        ...prev,
+        [itemId]: [...(prev[itemId] || []), docData]
+      }));
+
+      toast.success('File uploaded successfully');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload file');
+    } finally {
+      setUploadingFile(prev => ({ ...prev, [itemId]: false }));
+      event.target.value = '';
+    }
+  };
+
+  const handleDownloadFile = async (doc: PlayerDocument) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('player-documents')
+        .download(doc.file_path);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.file_name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download file');
+    }
+  };
+
+  const handleDeleteFile = async (itemId: string, doc: PlayerDocument) => {
+    try {
+      // Delete from storage
+      await supabase.storage
+        .from('player-documents')
+        .remove([doc.file_path]);
+
+      // Delete metadata
+      const { error } = await supabase
+        .from('player_documents')
+        .delete()
+        .eq('id', doc.id);
+
+      if (error) throw error;
+
+      setItemDocuments(prev => ({
+        ...prev,
+        [itemId]: (prev[itemId] || []).filter(d => d.id !== doc.id)
+      }));
+
+      toast.success('File deleted');
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete file');
     }
   };
 
@@ -173,6 +300,13 @@ export const AthleteChecklist: React.FC = () => {
     }
   };
 
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const completedCount = items.filter(i => i.status === 'completed').length;
   const progressPercentage = items.length > 0 ? (completedCount / items.length) * 100 : 0;
 
@@ -232,6 +366,7 @@ export const AthleteChecklist: React.FC = () => {
             {items.map((item, index) => {
               const isExpanded = expandedItemId === item.id;
               const canComplete = item.assigned_to_player && item.status !== 'completed';
+              const docs = itemDocuments[item.id] || [];
               
               return (
                 <div
@@ -289,6 +424,12 @@ export const AthleteChecklist: React.FC = () => {
                               Assigned to You
                             </Badge>
                           )}
+                          {docs.length > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              <FileText className="h-3 w-3 mr-1" />
+                              {docs.length} file{docs.length > 1 ? 's' : ''}
+                            </Badge>
+                          )}
                         </div>
 
                         {/* Actions Row */}
@@ -314,7 +455,7 @@ export const AthleteChecklist: React.FC = () => {
                             onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
                           >
                             <StickyNote className="h-4 w-4 mr-2" />
-                            {item.player_notes ? 'View Notes' : 'Add Notes'}
+                            Notes & Files
                             {isExpanded ? (
                               <ChevronUp className="h-4 w-4 ml-1" />
                             ) : (
@@ -326,30 +467,94 @@ export const AthleteChecklist: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Expanded Notes Section */}
+                  {/* Expanded Notes & Files Section */}
                   {isExpanded && (
                     <div className="px-5 pb-5 pt-0 border-t border-border bg-muted/30">
-                      <div className="pt-4">
-                        <label className="text-sm font-medium text-foreground mb-2 block">
-                          Your Notes
-                        </label>
-                        <Textarea
-                          placeholder="Add notes, questions, or updates about this task..."
-                          value={playerNotes[item.id] || ''}
-                          onChange={(e) => setPlayerNotes(prev => ({ ...prev, [item.id]: e.target.value }))}
-                          className="min-h-[100px] resize-none"
-                        />
-                        <Button
-                          size="sm"
-                          className="mt-2"
-                          onClick={() => handleSaveNotes(item.id)}
-                          disabled={savingNotes[item.id]}
-                        >
-                          {savingNotes[item.id] ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : null}
-                          Save Notes
-                        </Button>
+                      <div className="pt-4 space-y-4">
+                        {/* Notes */}
+                        <div>
+                          <label className="text-sm font-medium text-foreground mb-2 block">
+                            Your Notes
+                          </label>
+                          <Textarea
+                            placeholder="Add notes, questions, or updates about this task..."
+                            value={playerNotes[item.id] || ''}
+                            onChange={(e) => setPlayerNotes(prev => ({ ...prev, [item.id]: e.target.value }))}
+                            className="min-h-[100px] resize-none"
+                          />
+                          <Button
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => handleSaveNotes(item.id)}
+                            disabled={savingNotes[item.id]}
+                          >
+                            {savingNotes[item.id] ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : null}
+                            Save Notes
+                          </Button>
+                        </div>
+
+                        {/* Files */}
+                        <div>
+                          <label className="text-sm font-medium text-foreground mb-2 block">
+                            Attachments
+                          </label>
+                          
+                          {/* Existing files */}
+                          {docs.length > 0 && (
+                            <div className="space-y-2 mb-3">
+                              {docs.map(doc => (
+                                <div key={doc.id} className="flex items-center gap-3 p-2 bg-background rounded-lg border border-border">
+                                  <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{doc.file_name}</p>
+                                    <p className="text-xs text-muted-foreground">{formatFileSize(doc.file_size)}</p>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDownloadFile(doc)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteFile(item.id, doc)}
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Upload button */}
+                          <div>
+                            <input
+                              ref={el => fileInputRefs.current[item.id] = el}
+                              type="file"
+                              className="hidden"
+                              onChange={(e) => handleFileUpload(item.id, e)}
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fileInputRefs.current[item.id]?.click()}
+                              disabled={uploadingFile[item.id]}
+                            >
+                              {uploadingFile[item.id] ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <Upload className="h-4 w-4 mr-2" />
+                              )}
+                              Upload File
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
