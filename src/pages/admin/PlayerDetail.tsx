@@ -29,17 +29,22 @@ import {
   Check,
   Archive,
   ChevronRight,
-  Search
+  Search,
+  Bell,
+  Send,
+  MessageSquare
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CHECKLIST_PRESETS, CHECKLIST_CATEGORIES } from '@/data/checklistPresets';
-import { COLLEGES_DATABASE, DIVISIONS, CollegeData } from '@/data/collegesData';
+import { COLLEGES_DATABASE, CollegeData } from '@/data/collegesData';
+import { format } from 'date-fns';
 
 type PlayerStatus = 'active' | 'in_placement' | 'placed' | 'archived';
 type DivisionType = 'NCAA_D1' | 'NCAA_D2' | 'NCAA_D3' | 'NAIA' | 'NJCAA';
 
 interface Profile {
   id: string;
+  user_id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -79,6 +84,32 @@ interface CollegeTracking {
   status: string;
 }
 
+interface AdminNote {
+  id: string;
+  content: string;
+  admin_id: string;
+  created_at: string;
+  admin_name?: string;
+}
+
+interface PlayerMessage {
+  id: string;
+  content: string;
+  sender_id: string;
+  sender_type: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+interface Notification {
+  id: string;
+  title: string;
+  content: string | null;
+  type: string;
+  created_at: string;
+  read_at: string | null;
+}
+
 const STATUS_FLOW: { status: PlayerStatus; label: string; color: string }[] = [
   { status: 'active', label: 'New Player', color: 'bg-blue-500' },
   { status: 'in_placement', label: 'In Progress', color: 'bg-amber-500' },
@@ -92,6 +123,9 @@ export const PlayerDetail: React.FC = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [colleges, setColleges] = useState<CollegeTracking[]>([]);
+  const [adminNotes, setAdminNotes] = useState<AdminNote[]>([]);
+  const [playerMessages, setPlayerMessages] = useState<PlayerMessage[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState('');
@@ -99,6 +133,8 @@ export const PlayerDetail: React.FC = () => {
   const [collegeSearch, setCollegeSearch] = useState('');
   const [selectedCollege, setSelectedCollege] = useState<CollegeData | null>(null);
   const [showCollegeDropdown, setShowCollegeDropdown] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [sendingNote, setSendingNote] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -136,11 +172,40 @@ export const PlayerDetail: React.FC = () => {
 
       if (collegesData) setColleges(collegesData);
 
+      // Fetch admin notes
+      const { data: notesData } = await supabase
+        .from('admin_notes')
+        .select('*')
+        .eq('player_id', id)
+        .order('created_at', { ascending: true });
+
+      if (notesData) setAdminNotes(notesData);
+
+      // Fetch player messages
+      const { data: messagesData } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('player_id', id)
+        .order('created_at', { ascending: true });
+
+      if (messagesData) setPlayerMessages(messagesData);
+
+      // Fetch notifications for this player (admin notifications)
+      if (user) {
+        const { data: notificationsData } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('player_id', id)
+          .order('created_at', { ascending: false });
+
+        if (notificationsData) setNotifications(notificationsData);
+      }
+
       setLoading(false);
     };
 
     fetchData();
-  }, [id, navigate]);
+  }, [id, navigate, user]);
 
   const handleProfileChange = (field: keyof Profile, value: unknown) => {
     if (!profile) return;
@@ -352,6 +417,76 @@ export const PlayerDetail: React.FC = () => {
     college.state.toLowerCase().includes(collegeSearch.toLowerCase())
   ).slice(0, 20);
 
+  const handleSendNote = async () => {
+    if (!newNote.trim() || !id || !user) return;
+    setSendingNote(true);
+
+    const { data, error } = await supabase
+      .from('admin_notes')
+      .insert({
+        player_id: id,
+        admin_id: user.id,
+        content: newNote.trim(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Failed to send note');
+    } else if (data) {
+      setAdminNotes([...adminNotes, data]);
+      setNewNote('');
+      
+      // Create notification for all admins about this note
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        player_id: id,
+        type: 'admin_note',
+        title: 'New Admin Note',
+        content: `Note added for ${profile?.first_name} ${profile?.last_name}: ${newNote.trim().substring(0, 50)}...`,
+      });
+      
+      toast.success('Note sent');
+    }
+    setSendingNote(false);
+  };
+
+  const handleSendMessage = async (content: string) => {
+    if (!content.trim() || !id || !user) return;
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        player_id: id,
+        sender_id: user.id,
+        sender_type: 'admin',
+        content: content.trim(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error('Failed to send message');
+    } else if (data) {
+      setPlayerMessages([...playerMessages, data]);
+      
+      // Create notification for the player
+      if (profile?.user_id) {
+        await supabase.from('notifications').insert({
+          user_id: profile.user_id,
+          player_id: id,
+          type: 'new_message',
+          title: 'New Message from Venture Sports',
+          content: content.trim().substring(0, 100),
+        });
+      }
+      
+      toast.success('Message sent to player');
+    }
+  };
+
+  const unreadNotifications = notifications.filter(n => !n.read_at).length;
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -459,6 +594,15 @@ export const PlayerDetail: React.FC = () => {
               <GraduationCap className="h-4 w-4" />
               Colleges
             </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2 relative">
+              <Bell className="h-4 w-4" />
+              Notifications
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {unreadNotifications}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
@@ -559,15 +703,54 @@ export const PlayerDetail: React.FC = () => {
               </div>
             </div>
 
+            {/* Admin Notes Section - Now as messages */}
             <div className="bg-card rounded-2xl border border-border p-6">
-              <h2 className="text-lg font-semibold mb-4">Admin Notes</h2>
-              <p className="text-sm text-muted-foreground mb-3">These notes are only visible to staff members, not to the player.</p>
-              <Textarea
-                value={profile.additional_notes || ''}
-                onChange={(e) => handleProfileChange('additional_notes', e.target.value)}
-                placeholder="Internal notes about this player..."
-                rows={4}
-              />
+              <h2 className="text-lg font-semibold mb-2">Admin Notes</h2>
+              <p className="text-sm text-muted-foreground mb-4">These notes are only visible to staff members, not to the player.</p>
+              
+              {/* Notes Messages */}
+              <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto">
+                {adminNotes.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No admin notes yet</p>
+                  </div>
+                ) : (
+                  adminNotes.map((note) => (
+                    <div key={note.id} className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-foreground">{note.content}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {format(new Date(note.created_at), 'MMM d, yyyy h:mm a')}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Send Note Input */}
+              <div className="flex gap-3">
+                <Textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Write a note for other admins..."
+                  rows={2}
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendNote();
+                    }
+                  }}
+                />
+                <Button 
+                  variant="venture" 
+                  onClick={handleSendNote} 
+                  disabled={sendingNote || !newNote.trim()}
+                  className="self-end"
+                >
+                  {sendingNote ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           </TabsContent>
 
@@ -787,9 +970,141 @@ export const PlayerDetail: React.FC = () => {
               )}
             </div>
           </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            {/* Player Messages Section */}
+            <div className="bg-card rounded-2xl border border-border p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Messages with Player
+              </h2>
+              
+              {/* Messages */}
+              <div className="space-y-3 mb-4 max-h-[400px] overflow-y-auto">
+                {playerMessages.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                    <p>No messages yet</p>
+                  </div>
+                ) : (
+                  playerMessages.map((message) => (
+                    <div 
+                      key={message.id} 
+                      className={`rounded-lg p-3 max-w-[80%] ${
+                        message.sender_type === 'admin' 
+                          ? 'bg-primary/10 ml-auto' 
+                          : 'bg-muted/50'
+                      }`}
+                    >
+                      <p className="text-foreground">{message.content}</p>
+                      <p className="text-xs text-muted-foreground mt-2 flex items-center gap-2">
+                        <span className={`font-medium ${message.sender_type === 'admin' ? 'text-primary' : 'text-foreground'}`}>
+                          {message.sender_type === 'admin' ? 'Admin' : 'Player'}
+                        </span>
+                        • {format(new Date(message.created_at), 'MMM d, yyyy h:mm a')}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Send Message Input */}
+              <MessageInput onSend={handleSendMessage} />
+            </div>
+
+            {/* Notifications List */}
+            <div className="bg-card rounded-2xl border border-border p-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Activity & Notifications
+              </h2>
+              
+              {notifications.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Bell className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>No notifications yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notifications.map((notification) => (
+                    <div 
+                      key={notification.id} 
+                      className={`rounded-lg p-4 border ${
+                        notification.read_at 
+                          ? 'bg-muted/30 border-border' 
+                          : 'bg-primary/5 border-primary/20'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-foreground">{notification.title}</p>
+                          {notification.content && (
+                            <p className="text-sm text-muted-foreground mt-1">{notification.content}</p>
+                          )}
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          notification.type === 'admin_note' 
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : notification.type === 'new_message'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {notification.type.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {format(new Date(notification.created_at), 'MMM d, yyyy h:mm a')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
+  );
+};
+
+// Helper component for message input
+const MessageInput: React.FC<{ onSend: (content: string) => void }> = ({ onSend }) => {
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!message.trim()) return;
+    setSending(true);
+    await onSend(message.trim());
+    setMessage('');
+    setSending(false);
+  };
+
+  return (
+    <div className="flex gap-3">
+      <Textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Send a message to the player..."
+        rows={2}
+        className="flex-1"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+          }
+        }}
+      />
+      <Button 
+        variant="venture" 
+        onClick={handleSend} 
+        disabled={sending || !message.trim()}
+        className="self-end"
+      >
+        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+      </Button>
+    </div>
   );
 };
 
