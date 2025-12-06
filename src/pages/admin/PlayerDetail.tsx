@@ -116,6 +116,14 @@ interface Notification {
   read_at: string | null;
 }
 
+interface CollegeMessage {
+  id: string;
+  college_tracking_id: string;
+  sender_type: string;
+  content: string;
+  created_at: string;
+}
+
 const STATUS_FLOW: { status: PlayerStatus; label: string; color: string }[] = [
   { status: 'active', label: 'New Player', color: 'bg-blue-500' },
   { status: 'in_placement', label: 'In Progress', color: 'bg-amber-500' },
@@ -145,6 +153,9 @@ export const PlayerDetail: React.FC = () => {
   const [collegeNotes, setCollegeNotes] = useState<Record<string, string>>({});
   const [reminderDate, setReminderDate] = useState<Record<string, string>>({});
   const [reminderMessage, setReminderMessage] = useState<Record<string, string>>({});
+  const [collegeMessages, setCollegeMessages] = useState<Record<string, CollegeMessage[]>>({});
+  const [newCollegeMessage, setNewCollegeMessage] = useState<Record<string, string>>({});
+  const [sendingCollegeMessage, setSendingCollegeMessage] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -209,6 +220,24 @@ export const PlayerDetail: React.FC = () => {
           .order('created_at', { ascending: false });
 
         if (notificationsData) setNotifications(notificationsData);
+      }
+
+      // Fetch college messages
+      const { data: collegeMsgsData } = await supabase
+        .from('college_messages')
+        .select('*')
+        .eq('player_id', id)
+        .order('created_at', { ascending: true });
+
+      if (collegeMsgsData) {
+        const grouped: Record<string, CollegeMessage[]> = {};
+        collegeMsgsData.forEach((msg: CollegeMessage) => {
+          if (!grouped[msg.college_tracking_id]) {
+            grouped[msg.college_tracking_id] = [];
+          }
+          grouped[msg.college_tracking_id].push(msg);
+        });
+        setCollegeMessages(grouped);
       }
 
       setLoading(false);
@@ -466,6 +495,54 @@ export const PlayerDetail: React.FC = () => {
       setReminderDate(prev => ({ ...prev, [collegeId]: '' }));
       setReminderMessage(prev => ({ ...prev, [collegeId]: '' }));
       toast.success('Reminder sent to player');
+    }
+  };
+
+  const handleSendCollegeMessage = async (collegeId: string) => {
+    const content = newCollegeMessage[collegeId]?.trim();
+    if (!content || !id || !user || !profile) return;
+
+    setSendingCollegeMessage(prev => ({ ...prev, [collegeId]: true }));
+
+    try {
+      const { data, error } = await supabase
+        .from('college_messages')
+        .insert({
+          college_tracking_id: collegeId,
+          player_id: id,
+          sender_id: user.id,
+          sender_type: 'admin',
+          content,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setCollegeMessages(prev => ({
+        ...prev,
+        [collegeId]: [...(prev[collegeId] || []), data],
+      }));
+      setNewCollegeMessage(prev => ({ ...prev, [collegeId]: '' }));
+
+      // Create notification for the player
+      const college = colleges.find(c => c.id === collegeId);
+      await supabase.from('notifications').insert({
+        user_id: profile.user_id,
+        player_id: id,
+        type: 'college_message',
+        title: `New message about ${college?.college_name}`,
+        content: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
+        link: '/dashboard/colleges',
+      });
+
+      toast.success('Message sent to player');
+    } catch (error) {
+      console.error('Error sending college message:', error);
+      toast.error('Failed to send message');
+    } finally {
+      setSendingCollegeMessage(prev => ({ ...prev, [collegeId]: false }));
     }
   };
 
@@ -1191,6 +1268,69 @@ export const PlayerDetail: React.FC = () => {
                                 <Bell className="h-4 w-4 mr-2" />
                                 Send Reminder
                               </Button>
+                            </div>
+
+                            {/* College Messages Section */}
+                            <div className="space-y-2 pt-2 border-t border-border/50">
+                              <Label className="flex items-center gap-2 text-sm font-medium">
+                                <MessageSquare className="h-4 w-4" />
+                                Messages with Player about this College
+                              </Label>
+                              
+                              <div className="bg-background rounded-lg p-3 max-h-[200px] overflow-y-auto space-y-2">
+                                {(collegeMessages[college.id] || []).length === 0 ? (
+                                  <p className="text-sm text-muted-foreground text-center py-4">
+                                    No messages yet. Send a message to the player about this college.
+                                  </p>
+                                ) : (
+                                  (collegeMessages[college.id] || []).map((msg) => (
+                                    <div
+                                      key={msg.id}
+                                      className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                                        msg.sender_type === 'admin'
+                                          ? 'bg-primary/10 ml-auto'
+                                          : 'bg-muted'
+                                      }`}
+                                    >
+                                      <p className={`text-xs font-medium mb-1 ${
+                                        msg.sender_type === 'admin' ? 'text-primary' : 'text-foreground'
+                                      }`}>
+                                        {msg.sender_type === 'admin' ? 'Admin' : 'Player'}
+                                      </p>
+                                      <p className="text-foreground">{msg.content}</p>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {format(new Date(msg.created_at), 'MMM d, h:mm a')}
+                                      </p>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+
+                              <div className="flex gap-2">
+                                <Textarea
+                                  placeholder="Send a message to the player about this college..."
+                                  value={newCollegeMessage[college.id] || ''}
+                                  onChange={(e) => setNewCollegeMessage(prev => ({ ...prev, [college.id]: e.target.value }))}
+                                  className="min-h-[40px] max-h-[80px] resize-none text-sm"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleSendCollegeMessage(college.id);
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSendCollegeMessage(college.id)}
+                                  disabled={!newCollegeMessage[college.id]?.trim() || sendingCollegeMessage[college.id]}
+                                >
+                                  {sendingCollegeMessage[college.id] ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Send className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         )}

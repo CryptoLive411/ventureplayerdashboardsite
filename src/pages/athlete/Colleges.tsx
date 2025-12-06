@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, GraduationCap, MapPin, Mail, Phone } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, GraduationCap, MapPin, Mail, Phone, MessageSquare, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface CollegeTracking {
   id: string;
@@ -18,6 +21,14 @@ interface CollegeTracking {
   status: string;
   last_action_date: string | null;
   notes: string | null;
+}
+
+interface CollegeMessage {
+  id: string;
+  college_tracking_id: string;
+  sender_type: string;
+  content: string;
+  created_at: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -43,7 +54,13 @@ const statusLabels: Record<string, string> = {
 export const AthleteColleges: React.FC = () => {
   const { user } = useAuth();
   const [colleges, setColleges] = useState<CollegeTracking[]>([]);
+  const [collegeMessages, setCollegeMessages] = useState<Record<string, CollegeMessage[]>>({});
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedCollegeId, setExpandedCollegeId] = useState<string | null>(null);
+  const [newMessage, setNewMessage] = useState<Record<string, string>>({});
+  const [sending, setSending] = useState<Record<string, boolean>>({});
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchColleges = async () => {
@@ -53,9 +70,11 @@ export const AthleteColleges: React.FC = () => {
         .from('profiles')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (profile) {
+        setProfileId(profile.id);
+        
         const { data, error } = await supabase
           .from('college_tracking')
           .select('*')
@@ -64,6 +83,24 @@ export const AthleteColleges: React.FC = () => {
 
         if (!error && data) {
           setColleges(data);
+          
+          // Fetch messages for all colleges
+          const { data: messages } = await supabase
+            .from('college_messages')
+            .select('*')
+            .eq('player_id', profile.id)
+            .order('created_at', { ascending: true });
+          
+          if (messages) {
+            const grouped: Record<string, CollegeMessage[]> = {};
+            messages.forEach(msg => {
+              if (!grouped[msg.college_tracking_id]) {
+                grouped[msg.college_tracking_id] = [];
+              }
+              grouped[msg.college_tracking_id].push(msg);
+            });
+            setCollegeMessages(grouped);
+          }
         }
       }
       setLoading(false);
@@ -71,6 +108,79 @@ export const AthleteColleges: React.FC = () => {
 
     fetchColleges();
   }, [user]);
+
+  useEffect(() => {
+    if (expandedCollegeId && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [expandedCollegeId, collegeMessages]);
+
+  const handleSendMessage = async (collegeId: string) => {
+    const content = newMessage[collegeId]?.trim();
+    if (!content || !profileId || !user) return;
+
+    setSending(prev => ({ ...prev, [collegeId]: true }));
+
+    try {
+      const { data, error } = await supabase
+        .from('college_messages')
+        .insert({
+          college_tracking_id: collegeId,
+          player_id: profileId,
+          sender_id: user.id,
+          sender_type: 'player',
+          content,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setCollegeMessages(prev => ({
+        ...prev,
+        [collegeId]: [...(prev[collegeId] || []), data],
+      }));
+      setNewMessage(prev => ({ ...prev, [collegeId]: '' }));
+
+      // Notify admins
+      const college = colleges.find(c => c.id === collegeId);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', profileId)
+        .single();
+
+      const { data: admins } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      if (admins && profile) {
+        await Promise.all(admins.map(admin =>
+          supabase.from('notifications').insert({
+            user_id: admin.user_id,
+            player_id: profileId,
+            type: 'college_message',
+            title: `${profile.first_name} replied about ${college?.college_name}`,
+            content: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
+            link: `/admin/players/${profileId}`,
+          })
+        ));
+      }
+
+      toast.success('Message sent');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
+    } finally {
+      setSending(prev => ({ ...prev, [collegeId]: false }));
+    }
+  };
+
+  const getMessageCount = (collegeId: string) => {
+    return collegeMessages[collegeId]?.length || 0;
+  };
 
   // Group colleges by status
   const interestedColleges = colleges.filter(c => ['interested', 'communication', 'offer_made'].includes(c.status));
@@ -87,68 +197,157 @@ export const AthleteColleges: React.FC = () => {
     );
   }
 
-  const CollegeCard = ({ college, index }: { college: CollegeTracking; index: number }) => (
-    <div
-      className="bg-card rounded-xl border border-border p-5 hover:shadow-md transition-shadow animate-slide-up"
-      style={{ animationDelay: `${index * 0.05}s` }}
-    >
-      <div className="flex items-start justify-between gap-4 mb-3">
-        <div className="flex items-start gap-3">
-          <div className="h-10 w-10 rounded-lg bg-venture-blue/10 flex items-center justify-center flex-shrink-0">
-            <GraduationCap className="h-5 w-5 text-venture-blue" />
+  const CollegeCard = ({ college, index }: { college: CollegeTracking; index: number }) => {
+    const isExpanded = expandedCollegeId === college.id;
+    const messages = collegeMessages[college.id] || [];
+    const messageCount = getMessageCount(college.id);
+
+    return (
+      <div
+        className="bg-card rounded-xl border border-border overflow-hidden hover:shadow-md transition-shadow animate-slide-up"
+        style={{ animationDelay: `${index * 0.05}s` }}
+      >
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-lg bg-venture-blue/10 flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="h-5 w-5 text-venture-blue" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">{college.college_name}</h3>
+                {(college.city || college.state) && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {[college.city, college.state].filter(Boolean).join(', ')}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Badge className={`${statusColors[college.status]} border-0`}>
+              {statusLabels[college.status]}
+            </Badge>
           </div>
-          <div>
-            <h3 className="font-semibold text-foreground">{college.college_name}</h3>
-            {(college.city || college.state) && (
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {[college.city, college.state].filter(Boolean).join(', ')}
-              </p>
-            )}
-          </div>
+
+          {college.division && (
+            <p className="text-sm text-muted-foreground mb-3">
+              {college.division.replace('_', ' ')}
+            </p>
+          )}
+
+          {college.coach_name && (
+            <div className="bg-muted/50 rounded-lg p-3 mb-3">
+              <p className="text-sm font-medium text-foreground mb-1">{college.coach_name}</p>
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {college.coach_email && (
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    {college.coach_email}
+                  </span>
+                )}
+                {college.coach_phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="h-3 w-3" />
+                    {college.coach_phone}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {college.notes && (
+            <p className="text-sm text-muted-foreground mb-3">{college.notes}</p>
+          )}
+
+          {college.last_action_date && (
+            <p className="text-xs text-muted-foreground mb-3">
+              Last action: {format(new Date(college.last_action_date), 'MMM d, yyyy')}
+            </p>
+          )}
+
+          {/* Messages Toggle */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-between"
+            onClick={() => setExpandedCollegeId(isExpanded ? null : college.id)}
+          >
+            <span className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Messages {messageCount > 0 && `(${messageCount})`}
+            </span>
+            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
         </div>
-        <Badge className={`${statusColors[college.status]} border-0`}>
-          {statusLabels[college.status]}
-        </Badge>
+
+        {/* Messages Section */}
+        {isExpanded && (
+          <div className="border-t border-border bg-muted/30 p-4">
+            <div className="space-y-3 max-h-[300px] overflow-y-auto mb-4">
+              {messages.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No messages yet</p>
+                  <p className="text-xs">Send a message about this school</p>
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`max-w-[85%] rounded-xl px-3 py-2 ${
+                      message.sender_type === 'player'
+                        ? 'bg-venture-blue text-white ml-auto rounded-br-sm'
+                        : 'bg-card border border-border rounded-bl-sm'
+                    }`}
+                  >
+                    {message.sender_type !== 'player' && (
+                      <p className="text-xs font-medium text-venture-blue mb-1">Venture Sports</p>
+                    )}
+                    <p className={`text-sm ${message.sender_type === 'player' ? 'text-white' : 'text-foreground'}`}>
+                      {message.content}
+                    </p>
+                    <p className={`text-xs mt-1 ${
+                      message.sender_type === 'player' ? 'text-white/70' : 'text-muted-foreground'
+                    }`}>
+                      {format(new Date(message.created_at), 'MMM d, h:mm a')}
+                    </p>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input */}
+            <div className="flex gap-2">
+              <Textarea
+                value={newMessage[college.id] || ''}
+                onChange={(e) => setNewMessage(prev => ({ ...prev, [college.id]: e.target.value }))}
+                placeholder="Type your message..."
+                className="min-h-[40px] max-h-24 resize-none text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(college.id);
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                onClick={() => handleSendMessage(college.id)}
+                disabled={!newMessage[college.id]?.trim() || sending[college.id]}
+                className="px-3"
+              >
+                {sending[college.id] ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
-
-      {college.division && (
-        <p className="text-sm text-muted-foreground mb-3">
-          {college.division.replace('_', ' ')}
-        </p>
-      )}
-
-      {college.coach_name && (
-        <div className="bg-muted/50 rounded-lg p-3 mb-3">
-          <p className="text-sm font-medium text-foreground mb-1">{college.coach_name}</p>
-          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-            {college.coach_email && (
-              <span className="flex items-center gap-1">
-                <Mail className="h-3 w-3" />
-                {college.coach_email}
-              </span>
-            )}
-            {college.coach_phone && (
-              <span className="flex items-center gap-1">
-                <Phone className="h-3 w-3" />
-                {college.coach_phone}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {college.notes && (
-        <p className="text-sm text-muted-foreground mb-3">{college.notes}</p>
-      )}
-
-      {college.last_action_date && (
-        <p className="text-xs text-muted-foreground">
-          Last action: {format(new Date(college.last_action_date), 'MMM d, yyyy')}
-        </p>
-      )}
-    </div>
-  );
+    );
+  };
 
   return (
     <DashboardLayout>
@@ -165,7 +364,7 @@ export const AthleteColleges: React.FC = () => {
             { label: 'Contacted', value: contactedColleges.length + interestedColleges.length },
             { label: 'Interested', value: interestedColleges.length },
             { label: 'With Offers', value: colleges.filter(c => c.status === 'offer_made').length },
-          ].map((stat, i) => (
+          ].map((stat) => (
             <div key={stat.label} className="stat-card text-center">
               <p className="text-2xl font-bold text-foreground">{stat.value}</p>
               <p className="text-sm text-muted-foreground">{stat.label}</p>
