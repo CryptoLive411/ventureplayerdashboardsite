@@ -32,7 +32,11 @@ import {
   Search,
   Bell,
   Send,
-  MessageSquare
+  MessageSquare,
+  StickyNote,
+  Calendar,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CHECKLIST_PRESETS, CHECKLIST_CATEGORIES } from '@/data/checklistPresets';
@@ -82,6 +86,7 @@ interface CollegeTracking {
   state: string | null;
   coach_name: string | null;
   status: string;
+  notes: string | null;
 }
 
 interface AdminNote {
@@ -135,6 +140,10 @@ export const PlayerDetail: React.FC = () => {
   const [showCollegeDropdown, setShowCollegeDropdown] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [sendingNote, setSendingNote] = useState(false);
+  const [expandedCollegeId, setExpandedCollegeId] = useState<string | null>(null);
+  const [collegeNotes, setCollegeNotes] = useState<Record<string, string>>({});
+  const [reminderDate, setReminderDate] = useState<Record<string, string>>({});
+  const [reminderMessage, setReminderMessage] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -409,6 +418,53 @@ export const PlayerDetail: React.FC = () => {
     } else {
       setColleges(colleges.filter(c => c.id !== collegeId));
       toast.success('College removed');
+    }
+  };
+
+  const handleSaveCollegeNotes = async (collegeId: string) => {
+    const notes = collegeNotes[collegeId];
+    if (notes === undefined) return;
+
+    const { error } = await supabase
+      .from('college_tracking')
+      .update({ notes })
+      .eq('id', collegeId);
+
+    if (error) {
+      toast.error('Failed to save notes');
+    } else {
+      setColleges(colleges.map(c => 
+        c.id === collegeId ? { ...c, notes } : c
+      ));
+      toast.success('Notes saved');
+    }
+  };
+
+  const handleCreateReminder = async (collegeId: string, collegeName: string) => {
+    const date = reminderDate[collegeId];
+    const message = reminderMessage[collegeId];
+    
+    if (!date || !message?.trim() || !id || !profile) {
+      toast.error('Please enter both date and message');
+      return;
+    }
+
+    // Create a notification for the player
+    const { error } = await supabase.from('notifications').insert({
+      user_id: profile.user_id,
+      player_id: id,
+      type: 'college_reminder',
+      title: `Reminder: ${collegeName}`,
+      content: message.trim(),
+      link: `/athlete/colleges`,
+    });
+
+    if (error) {
+      toast.error('Failed to create reminder');
+    } else {
+      setReminderDate(prev => ({ ...prev, [collegeId]: '' }));
+      setReminderMessage(prev => ({ ...prev, [collegeId]: '' }));
+      toast.success('Reminder sent to player');
     }
   };
 
@@ -952,52 +1008,128 @@ export const PlayerDetail: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {colleges.map((college) => (
-                    <div
-                      key={college.id}
-                      className="bg-muted/30 rounded-lg p-4 flex items-center justify-between gap-4"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground">{college.college_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {college.division?.replace('_', ' ') || 'Division N/A'} • {college.state || 'State N/A'}
-                        </p>
+                  {colleges.map((college) => {
+                    const isExpanded = expandedCollegeId === college.id;
+                    return (
+                      <div
+                        key={college.id}
+                        className="bg-muted/30 rounded-lg overflow-hidden"
+                      >
+                        <div className="p-4 flex items-center justify-between gap-4">
+                          <button
+                            onClick={() => {
+                              setExpandedCollegeId(isExpanded ? null : college.id);
+                              if (!isExpanded && college.notes) {
+                                setCollegeNotes(prev => ({ ...prev, [college.id]: college.notes || '' }));
+                              }
+                            }}
+                            className="flex items-center gap-2 text-left flex-1 min-w-0"
+                          >
+                            {isExpanded ? (
+                              <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-medium text-foreground">{college.college_name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {college.division?.replace('_', ' ') || 'Division N/A'} • {college.state || 'State N/A'}
+                              </p>
+                            </div>
+                          </button>
+                          <Select
+                            value={college.status || undefined}
+                            onValueChange={async (value) => {
+                              const newStatus = value as "not_contacted" | "contacted" | "interested" | "communication" | "offer_made" | "not_interested" | "rejected";
+                              await supabase
+                                .from('college_tracking')
+                                .update({ status: newStatus })
+                                .eq('id', college.id);
+                              setColleges(colleges.map(c => 
+                                c.id === college.id ? { ...c, status: newStatus } : c
+                              ));
+                              toast.success('Status updated');
+                            }}
+                          >
+                            <SelectTrigger className="w-[140px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COLLEGE_STATUSES.map((status) => (
+                                <SelectItem key={status.value} value={status.value}>
+                                  {status.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteCollege(college.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        {isExpanded && (
+                          <div className="px-4 pb-4 pt-2 border-t border-border space-y-4">
+                            {/* Notes Section */}
+                            <div className="space-y-2">
+                              <Label className="flex items-center gap-2 text-sm font-medium">
+                                <StickyNote className="h-4 w-4" />
+                                Notes
+                              </Label>
+                              <Textarea
+                                placeholder="Add notes about this college (meetings, coach contact info, etc.)"
+                                value={collegeNotes[college.id] ?? college.notes ?? ''}
+                                onChange={(e) => setCollegeNotes(prev => ({ ...prev, [college.id]: e.target.value }))}
+                                className="min-h-[80px]"
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handleSaveCollegeNotes(college.id)}
+                                className="mt-1"
+                              >
+                                <Save className="h-4 w-4 mr-2" />
+                                Save Notes
+                              </Button>
+                            </div>
+
+                            {/* Reminder Section */}
+                            <div className="space-y-2 pt-2 border-t border-border/50">
+                              <Label className="flex items-center gap-2 text-sm font-medium">
+                                <Calendar className="h-4 w-4" />
+                                Send Reminder to Player
+                              </Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  type="date"
+                                  value={reminderDate[college.id] || ''}
+                                  onChange={(e) => setReminderDate(prev => ({ ...prev, [college.id]: e.target.value }))}
+                                  className="w-[160px]"
+                                />
+                                <Input
+                                  placeholder="Reminder message (e.g., Meeting with Coach Smith)"
+                                  value={reminderMessage[college.id] || ''}
+                                  onChange={(e) => setReminderMessage(prev => ({ ...prev, [college.id]: e.target.value }))}
+                                  className="flex-1"
+                                />
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => handleCreateReminder(college.id, college.college_name)}
+                              >
+                                <Bell className="h-4 w-4 mr-2" />
+                                Send Reminder
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <Select
-                        value={college.status || undefined}
-                        onValueChange={async (value) => {
-                          const newStatus = value as "not_contacted" | "contacted" | "interested" | "communication" | "offer_made" | "not_interested" | "rejected";
-                          await supabase
-                            .from('college_tracking')
-                            .update({ status: newStatus })
-                            .eq('id', college.id);
-                          setColleges(colleges.map(c => 
-                            c.id === college.id ? { ...c, status: newStatus } : c
-                          ));
-                          toast.success('Status updated');
-                        }}
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {COLLEGE_STATUSES.map((status) => (
-                            <SelectItem key={status.value} value={status.value}>
-                              {status.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteCollege(college.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
