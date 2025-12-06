@@ -17,6 +17,7 @@ import {
   Archive,
   Settings,
   ChevronRight,
+  Bell,
 } from 'lucide-react';
 
 interface NavItem {
@@ -36,6 +37,7 @@ const athleteNavItems: NavItem[] = [
 const adminNavItems: NavItem[] = [
   { label: 'Player Profiles', href: '/admin', icon: LayoutDashboard },
   { label: 'All Players', href: '/admin/players', icon: Users },
+  { label: 'Notifications', href: '/admin/notifications', icon: Bell },
   { label: 'Archived', href: '/admin/archived', icon: Archive },
   { label: 'Staff Management', href: '/admin/staff', icon: Settings },
 ];

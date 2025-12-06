@@ -435,6 +435,7 @@ export const PlayerDetail: React.FC = () => {
       toast.error('Failed to send note');
     } else if (data) {
       setAdminNotes([...adminNotes, data]);
+      const noteContent = newNote.trim();
       setNewNote('');
       
       // Create notification for all admins about this note
@@ -443,8 +444,23 @@ export const PlayerDetail: React.FC = () => {
         player_id: id,
         type: 'admin_note',
         title: 'New Admin Note',
-        content: `Note added for ${profile?.first_name} ${profile?.last_name}: ${newNote.trim().substring(0, 50)}...`,
+        content: `Note added for ${profile?.first_name} ${profile?.last_name}: ${noteContent.substring(0, 50)}...`,
       });
+
+      // Send email notification to all admins
+      try {
+        await supabase.functions.invoke('send-notification-email', {
+          body: {
+            type: 'admin_note',
+            title: 'New Admin Note',
+            content: noteContent,
+            playerName: `${profile?.first_name} ${profile?.last_name}`,
+            playerId: id,
+          },
+        });
+      } catch (emailError) {
+        console.log('Email notification skipped:', emailError);
+      }
       
       toast.success('Note sent');
     }
