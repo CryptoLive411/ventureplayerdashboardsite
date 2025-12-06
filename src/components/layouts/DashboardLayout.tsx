@@ -19,6 +19,7 @@ import {
   Settings,
   ChevronRight,
   Bell,
+  MessageSquare,
 } from 'lucide-react';
 
 interface NavItem {
@@ -34,6 +35,8 @@ const athleteNavItems: NavItem[] = [
   { label: 'Checklist', href: '/dashboard/checklist', icon: CheckSquare },
   { label: 'Colleges', href: '/dashboard/colleges', icon: GraduationCap },
   { label: 'Offers', href: '/dashboard/offers', icon: Trophy },
+  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell, showBadge: true },
+  { label: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -58,18 +61,30 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   const isAdmin = userRole === 'admin';
   const navItems = isAdmin ? adminNavItems : athleteNavItems;
 
-  // Fetch unread notification count for admins
+  // Fetch unread notification count
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!user) return;
 
     const fetchNotificationCount = async () => {
-      const { count } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .is('read_at', null)
-        .not('type', 'in', '("college_reminder","checklist_reminder")');
-      
-      setNotificationCount(count || 0);
+      if (isAdmin) {
+        // Admin: exclude player-specific reminders
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .is('read_at', null)
+          .not('type', 'in', '("college_reminder","checklist_reminder")');
+        
+        setNotificationCount(count || 0);
+      } else {
+        // Athlete: count their own notifications
+        const { count } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .is('read_at', null);
+        
+        setNotificationCount(count || 0);
+      }
     };
 
     fetchNotificationCount();
@@ -87,7 +102,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isAdmin]);
+  }, [user, isAdmin]);
 
   const handleSignOut = async () => {
     await signOut();

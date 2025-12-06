@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { Loader2, CheckCircle2, Circle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 interface ChecklistItem {
   id: string;
@@ -12,6 +13,7 @@ interface ChecklistItem {
   status: string;
   due_date: string | null;
   completed_at: string | null;
+  assigned_to_player: boolean | null;
 }
 
 export const AthleteChecklist: React.FC = () => {
@@ -170,6 +172,11 @@ export const AthleteChecklist: React.FC = () => {
                       <p className="text-xs text-muted-foreground mt-2">
                         Due: {format(new Date(item.due_date), 'MMM d, yyyy')}
                       </p>
+                    )}
+                    {item.assigned_to_player && (
+                      <Badge variant="outline" className="mt-2 text-xs border-venture-blue/30 text-venture-blue bg-venture-blue/10">
+                        Assigned to You
+                      </Badge>
                     )}
                   </div>
                 </div>
