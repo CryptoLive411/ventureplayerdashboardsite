@@ -26,7 +26,6 @@ interface PlayerDocument {
   file_name: string;
   file_path: string;
   file_size: number | null;
-  checklist_item_id: string | null;
   created_at: string;
 }
 
@@ -88,14 +87,11 @@ export const AthleteChecklist: React.FC = () => {
 
           if (docs) {
             const docsByItem: Record<string, PlayerDocument[]> = {};
-            docs.forEach((doc) => {
-              const itemId = doc.checklist_item_id;
-              if (itemId) {
-                if (!docsByItem[itemId]) {
-                  docsByItem[itemId] = [];
-                }
-                docsByItem[itemId].push(doc as PlayerDocument);
+            docs.forEach((doc: PlayerDocument & { checklist_item_id: string }) => {
+              if (!docsByItem[doc.checklist_item_id]) {
+                docsByItem[doc.checklist_item_id] = [];
               }
+              docsByItem[doc.checklist_item_id].push(doc);
             });
             setItemDocuments(docsByItem);
           }
