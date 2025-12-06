@@ -99,6 +99,54 @@ export type Database = {
           },
         ]
       }
+      college_messages: {
+        Row: {
+          college_tracking_id: string
+          content: string
+          created_at: string
+          id: string
+          player_id: string
+          read_at: string | null
+          sender_id: string
+          sender_type: string
+        }
+        Insert: {
+          college_tracking_id: string
+          content: string
+          created_at?: string
+          id?: string
+          player_id: string
+          read_at?: string | null
+          sender_id: string
+          sender_type: string
+        }
+        Update: {
+          college_tracking_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          player_id?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "college_messages_college_tracking_id_fkey"
+            columns: ["college_tracking_id"]
+            isOneToOne: false
+            referencedRelation: "college_tracking"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "college_messages_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       college_tracking: {
         Row: {
           city: string | null
