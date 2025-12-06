@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CHECKLIST_PRESETS, CHECKLIST_CATEGORIES } from '@/data/checklistPresets';
-import { COLLEGES_DATABASE, CollegeData } from '@/data/collegesData';
+import { COLLEGES_DATABASE, COLLEGE_STATUSES, CollegeData } from '@/data/collegesData';
 import { format } from 'date-fns';
 
 type PlayerStatus = 'active' | 'in_placement' | 'placed' | 'archived';
@@ -955,31 +955,46 @@ export const PlayerDetail: React.FC = () => {
                   {colleges.map((college) => (
                     <div
                       key={college.id}
-                      className="bg-muted/30 rounded-lg p-4 flex items-center justify-between"
+                      className="bg-muted/30 rounded-lg p-4 flex items-center justify-between gap-4"
                     >
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground">{college.college_name}</p>
                         <p className="text-sm text-muted-foreground">
                           {college.division?.replace('_', ' ') || 'Division N/A'} • {college.state || 'State N/A'}
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`status-badge ${
-                          college.status === 'offer_made' ? 'status-placed' :
-                          college.status === 'interested' ? 'status-in-placement' :
-                          'status-active'
-                        }`}>
-                          {college.status.replace('_', ' ')}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteCollege(college.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Select
+                        value={college.status}
+                        onValueChange={async (value) => {
+                          await supabase
+                            .from('college_tracking')
+                            .update({ status: value })
+                            .eq('id', college.id);
+                          setColleges(colleges.map(c => 
+                            c.id === college.id ? { ...c, status: value } : c
+                          ));
+                          toast.success('Status updated');
+                        }}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COLLEGE_STATUSES.map((status) => (
+                            <SelectItem key={status.value} value={status.value}>
+                              {status.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteCollege(college.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   ))}
                 </div>
