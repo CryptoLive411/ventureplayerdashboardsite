@@ -17,7 +17,7 @@
     --popover-foreground: 215 50% 15%;
 
     /* Primary - Deep Navy Blue */
-    --primary: 215 60% 20%;
+    --primary: 220 56% 27%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary - Light Blue Gray */
@@ -41,28 +41,28 @@
     --radius: 0.75rem;
 
     /* Sidebar */
-    --sidebar-background: 215 60% 15%;
-    --sidebar-foreground: 210 30% 95%;
-    --sidebar-primary: 210 100% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 50% 25%;
-    --sidebar-accent-foreground: 210 30% 95%;
-    --sidebar-border: 215 40% 25%;
-    --sidebar-ring: 210 100% 60%;
+    --sidebar-background: 220 56% 18%;
+    --sidebar-foreground: 220 30% 95%;
+    --sidebar-primary: 45 100% 51%;
+    --sidebar-primary-foreground: 220 56% 15%;
+    --sidebar-accent: 220 50% 25%;
+    --sidebar-accent-foreground: 220 30% 95%;
+    --sidebar-border: 220 40% 25%;
+    --sidebar-ring: 45 100% 51%;
 
-    /* Custom Venture Colors - Deep Navy with Gold Accent */
-    --venture-navy: 222 47% 20%;
-    --venture-navy-dark: 222 47% 11%;
-    --venture-blue: 222 47% 20%;
-    --venture-blue-light: 222 47% 35%;
+    /* Custom Venture Colors - Deep Navy from Logo */
+    --venture-navy: 220 56% 27%;
+    --venture-navy-dark: 220 56% 15%;
+    --venture-blue: 220 56% 27%;
+    --venture-blue-light: 220 56% 45%;
     --venture-gold: 45 100% 51%;
     --venture-success: 160 84% 39%;
     --venture-warning: 38 92% 50%;
 
     /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(215, 65%, 12%) 0%, hsl(215, 60%, 25%) 50%, hsl(210, 80%, 35%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(210, 30%, 98%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(210, 100%, 50%) 0%, hsl(210, 100%, 65%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(220, 56%, 15%) 0%, hsl(220, 56%, 27%) 50%, hsl(220, 50%, 35%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(220, 30%, 98%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(220, 56%, 27%) 0%, hsl(220, 56%, 45%) 100%);
   }
 
   .dark {
@@ -103,8 +103,8 @@
     --sidebar-border: 215 40% 18%;
     --sidebar-ring: 210 100% 60%;
 
-    --gradient-hero: linear-gradient(135deg, hsl(215, 55%, 6%) 0%, hsl(215, 50%, 15%) 50%, hsl(210, 60%, 25%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(215, 45%, 12%) 0%, hsl(215, 45%, 10%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(220, 56%, 10%) 0%, hsl(220, 56%, 20%) 50%, hsl(220, 50%, 30%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(220, 45%, 12%) 0%, hsl(220, 45%, 10%) 100%);
   }
 }
 
