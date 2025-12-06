@@ -50,12 +50,12 @@
     --sidebar-border: 215 40% 25%;
     --sidebar-ring: 210 100% 60%;
 
-    /* Custom Venture Colors */
-    --venture-navy: 215 60% 20%;
-    --venture-navy-dark: 215 65% 12%;
-    --venture-blue: 210 100% 50%;
-    --venture-blue-light: 210 100% 65%;
-    --venture-gold: 45 100% 50%;
+    /* Custom Venture Colors - Deep Navy with Gold Accent */
+    --venture-navy: 222 47% 20%;
+    --venture-navy-dark: 222 47% 11%;
+    --venture-blue: 222 47% 20%;
+    --venture-blue-light: 222 47% 35%;
+    --venture-gold: 45 100% 51%;
     --venture-success: 160 84% 39%;
     --venture-warning: 38 92% 50%;
 
