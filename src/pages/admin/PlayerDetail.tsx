@@ -36,7 +36,9 @@ import {
   StickyNote,
   Calendar,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  FileText,
+  Download
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CHECKLIST_PRESETS, CHECKLIST_CATEGORIES } from '@/data/checklistPresets';
@@ -78,6 +80,16 @@ interface ChecklistItem {
   due_date: string | null;
   completed_at: string | null;
   assigned_to_player: boolean;
+  player_notes: string | null;
+}
+
+interface PlayerDocument {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number | null;
+  created_at: string;
+  uploaded_by_type: string;
 }
 
 interface CollegeTracking {
@@ -156,6 +168,8 @@ export const PlayerDetail: React.FC = () => {
   const [collegeMessages, setCollegeMessages] = useState<Record<string, CollegeMessage[]>>({});
   const [newCollegeMessage, setNewCollegeMessage] = useState<Record<string, string>>({});
   const [sendingCollegeMessage, setSendingCollegeMessage] = useState<Record<string, boolean>>({});
+  const [checklistDocuments, setChecklistDocuments] = useState<Record<string, PlayerDocument[]>>({});
+  const [expandedChecklistId, setExpandedChecklistId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -238,6 +252,24 @@ export const PlayerDetail: React.FC = () => {
           grouped[msg.college_tracking_id].push(msg);
         });
         setCollegeMessages(grouped);
+      }
+
+      // Fetch player documents
+      const { data: docsData } = await supabase
+        .from('player_documents')
+        .select('*')
+        .eq('player_id', id)
+        .not('checklist_item_id', 'is', null);
+
+      if (docsData) {
+        const docsByItem: Record<string, PlayerDocument[]> = {};
+        docsData.forEach((doc: PlayerDocument & { checklist_item_id: string }) => {
+          if (!docsByItem[doc.checklist_item_id]) {
+            docsByItem[doc.checklist_item_id] = [];
+          }
+          docsByItem[doc.checklist_item_id].push(doc);
+        });
+        setChecklistDocuments(docsByItem);
       }
 
       setLoading(false);
@@ -998,11 +1030,16 @@ export const PlayerDetail: React.FC = () => {
                   <p className="text-muted-foreground">No checklist items yet</p>
                 </div>
               ) : (
-                checklist.map((item) => (
+                checklist.map((item) => {
+                  const docs = checklistDocuments[item.id] || [];
+                  const isExpanded = expandedChecklistId === item.id;
+                  
+                  return (
                   <div
                     key={item.id}
-                    className="bg-card rounded-xl border border-border p-4"
+                    className="bg-card rounded-xl border border-border overflow-hidden"
                   >
+                    <div className="p-4">
                     <div className="flex items-center gap-4">
                       <button
                         onClick={() => handleToggleChecklistItem(item)}
@@ -1021,12 +1058,26 @@ export const PlayerDetail: React.FC = () => {
                         {item.description && (
                           <p className="text-sm text-muted-foreground">{item.description}</p>
                         )}
-                        {item.assigned_to_player && (
-                          <span className="inline-flex items-center gap-1 mt-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                            <User className="h-3 w-3" />
-                            Assigned to player
-                          </span>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          {item.assigned_to_player && (
+                            <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                              <User className="h-3 w-3" />
+                              Assigned to player
+                            </span>
+                          )}
+                          {docs.length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-xs bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full">
+                              <FileText className="h-3 w-3" />
+                              {docs.length} file{docs.length > 1 ? 's' : ''}
+                            </span>
+                          )}
+                          {item.player_notes && (
+                            <span className="inline-flex items-center gap-1 text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                              <StickyNote className="h-3 w-3" />
+                              Has notes
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <Button
@@ -1059,8 +1110,10 @@ export const PlayerDetail: React.FC = () => {
                         </Button>
                       </div>
                     </div>
+                    </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </TabsContent>

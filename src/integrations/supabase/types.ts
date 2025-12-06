@@ -374,6 +374,60 @@ export type Database = {
         }
         Relationships: []
       }
+      player_documents: {
+        Row: {
+          checklist_item_id: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          player_id: string
+          uploaded_by: string
+          uploaded_by_type: string
+        }
+        Insert: {
+          checklist_item_id?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          player_id: string
+          uploaded_by: string
+          uploaded_by_type: string
+        }
+        Update: {
+          checklist_item_id?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          player_id?: string
+          uploaded_by?: string
+          uploaded_by_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_documents_checklist_item_id_fkey"
+            columns: ["checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_documents_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           act_score: number | null
