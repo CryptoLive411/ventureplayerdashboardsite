@@ -24,6 +24,7 @@ import AdminAuth from "./pages/admin/Auth";
 import PlayersList from "./pages/admin/PlayersList";
 import PlayerDetail from "./pages/admin/PlayerDetail";
 import ArchivedPlayers from "./pages/admin/ArchivedPlayers";
+import StaffManagement from "./pages/admin/StaffManagement";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +113,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <ArchivedPlayers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/staff"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <StaffManagement />
                 </ProtectedRoute>
               }
             />

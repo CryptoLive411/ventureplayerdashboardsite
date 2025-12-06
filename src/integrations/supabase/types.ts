@@ -215,6 +215,42 @@ export type Database = {
           },
         ]
       }
+      pending_admin_requests: {
+        Row: {
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          requested_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           act_score: number | null
