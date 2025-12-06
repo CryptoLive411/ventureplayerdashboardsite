@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,105 +6,97 @@
 
 @layer base {
   :root {
-    /* Venture Soccer Brand Colors */
-    --background: 210 20% 98%;
-    --foreground: 215 50% 15%;
+    /* Venture Soccer Brand Colors - Dark Navy Theme */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 50% 15%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 50% 15%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Primary - Deep Navy Blue */
-    --primary: 220 56% 27%;
+    /* Primary - Deep Blue */
+    --primary: 220 70% 35%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Light Blue Gray */
-    --secondary: 210 30% 95%;
-    --secondary-foreground: 215 50% 20%;
+    /* Secondary */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 20% 94%;
-    --muted-foreground: 215 20% 45%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    /* Accent - Electric Blue */
-    --accent: 210 100% 50%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent - Gold */
+    --accent: 45 93% 58%;
+    --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 215 60% 20%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 220 70% 35%;
 
     --radius: 0.75rem;
 
-    /* Sidebar */
-    --sidebar-background: 220 56% 18%;
-    --sidebar-foreground: 220 30% 95%;
-    --sidebar-primary: 45 100% 51%;
-    --sidebar-primary-foreground: 220 56% 15%;
-    --sidebar-accent: 220 50% 25%;
-    --sidebar-accent-foreground: 220 30% 95%;
-    --sidebar-border: 220 40% 25%;
-    --sidebar-ring: 45 100% 51%;
+    /* Sidebar - Dark Navy */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 45 93% 58%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 222 47% 18%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 47% 18%;
+    --sidebar-ring: 45 93% 58%;
 
-    /* Custom Venture Colors - Deep Navy from Logo */
-    --venture-navy: 220 56% 27%;
-    --venture-navy-dark: 220 56% 15%;
-    --venture-blue: 220 56% 27%;
-    --venture-blue-light: 220 56% 45%;
-    --venture-gold: 45 100% 51%;
+    /* Custom Venture Colors */
+    --venture-navy: 222 47% 11%;
+    --venture-navy-dark: 222 47% 6%;
+    --venture-blue: 220 70% 35%;
+    --venture-blue-light: 220 70% 50%;
+    --venture-gold: 45 93% 58%;
     --venture-success: 160 84% 39%;
     --venture-warning: 38 92% 50%;
-
-    /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(220, 56%, 15%) 0%, hsl(220, 56%, 27%) 50%, hsl(220, 50%, 35%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(220, 30%, 98%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(220, 56%, 27%) 0%, hsl(220, 56%, 45%) 100%);
   }
 
   .dark {
-    --background: 215 50% 8%;
-    --foreground: 210 30% 95%;
+    --background: 222 47% 6%;
+    --foreground: 0 0% 100%;
 
-    --card: 215 45% 12%;
-    --card-foreground: 210 30% 95%;
+    --card: 222 47% 11%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 215 45% 12%;
-    --popover-foreground: 210 30% 95%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 210 100% 60%;
-    --primary-foreground: 215 60% 10%;
+    --primary: 45 93% 58%;
+    --primary-foreground: 222 47% 11%;
 
-    --secondary: 215 40% 18%;
-    --secondary-foreground: 210 30% 95%;
+    --secondary: 222 47% 18%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 215 40% 18%;
-    --muted-foreground: 210 20% 60%;
+    --muted: 222 47% 18%;
+    --muted-foreground: 220 9% 70%;
 
-    --accent: 210 100% 55%;
-    --accent-foreground: 215 60% 10%;
+    --accent: 45 93% 58%;
+    --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 62% 50%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 40% 20%;
-    --input: 215 40% 20%;
-    --ring: 210 100% 60%;
+    --border: 222 47% 18%;
+    --input: 222 47% 18%;
+    --ring: 45 93% 58%;
 
-    --sidebar-background: 215 55% 10%;
-    --sidebar-foreground: 210 30% 95%;
-    --sidebar-primary: 210 100% 60%;
-    --sidebar-primary-foreground: 215 60% 10%;
-    --sidebar-accent: 215 45% 18%;
-    --sidebar-accent-foreground: 210 30% 95%;
-    --sidebar-border: 215 40% 18%;
-    --sidebar-ring: 210 100% 60%;
-
-    --gradient-hero: linear-gradient(135deg, hsl(220, 56%, 10%) 0%, hsl(220, 56%, 20%) 50%, hsl(220, 50%, 30%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(220, 45%, 12%) 0%, hsl(220, 45%, 10%) 100%);
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 45 93% 58%;
+    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-accent: 222 47% 15%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 47% 15%;
+    --sidebar-ring: 45 93% 58%;
   }
 }
 
@@ -128,12 +120,12 @@
   }
 
   .venture-gradient {
-    background: var(--gradient-hero);
+    background: linear-gradient(135deg, hsl(var(--venture-navy)) 0%, hsl(var(--venture-blue)) 100%);
   }
 
   .text-gradient {
     @apply bg-clip-text text-transparent;
-    background: var(--gradient-accent);
+    background: linear-gradient(135deg, hsl(var(--venture-blue)) 0%, hsl(var(--venture-gold)) 100%);
   }
 
   .hover-lift {
@@ -184,14 +176,21 @@
 
   .animate-slide-up {
     animation: slideUp 0.6s ease-out forwards;
+    opacity: 0;
   }
 
   .animate-slide-in-left {
     animation: slideInLeft 0.5s ease-out forwards;
+    opacity: 0;
   }
 
   .animate-scale-in {
     animation: scaleIn 0.4s ease-out forwards;
+    opacity: 0;
+  }
+
+  .animate-scroll {
+    animation: scroll 25s linear infinite;
   }
 
   .stagger-1 { animation-delay: 0.1s; }
@@ -241,4 +240,32 @@
     opacity: 1;
     transform: scale(1);
   }
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
 }
