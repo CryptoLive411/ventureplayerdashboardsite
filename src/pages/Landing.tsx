@@ -10,37 +10,92 @@ import {
   ArrowRight,
   CheckCircle2,
   Globe,
-  Shield
+  Shield,
+  Play,
+  Star
 } from 'lucide-react';
+
+// Import player images
+import pedroBaisch from '@/assets/players/pedro-baisch.png';
+import miloPeters from '@/assets/players/milo-peters.png';
+import youssef from '@/assets/players/youssef.png';
+import xavier from '@/assets/players/xavier.png';
+import wassim from '@/assets/players/wassim.png';
+import umberto from '@/assets/players/umberto.png';
 
 const features = [
   {
     icon: Target,
     title: 'Personalized Recruitment',
-    description: 'Get matched with colleges that fit your athletic and academic profile perfectly.',
+    description: 'We find programs that match your athletic ability, academic goals, and personal preferences.',
   },
   {
     icon: GraduationCap,
-    title: 'Academic Support',
-    description: 'Navigate NCAA eligibility, SAT/ACT prep, and scholarship requirements with expert guidance.',
+    title: 'Academic Guidance',
+    description: 'Navigate NCAA eligibility, standardized tests, and scholarship requirements with expert support.',
   },
   {
     icon: Globe,
     title: 'Global Network',
-    description: 'Access to 500+ college programs across all NCAA divisions, NAIA, and NJCAA.',
+    description: 'Access 500+ college programs across NCAA D1, D2, D3, NAIA, and NJCAA divisions.',
   },
   {
     icon: Shield,
     title: 'Full Transparency',
-    description: 'Track every step of your recruitment journey in your personal dashboard.',
+    description: 'Track every interaction, coach response, and offer in your personal athlete portal.',
   },
 ];
 
 const stats = [
   { value: '500+', label: 'Athletes Placed' },
-  { value: '95%', label: 'Success Rate' },
-  { value: '200+', label: 'Partner Colleges' },
-  { value: '$2M+', label: 'Scholarships Secured' },
+  { value: '95%', label: 'Placement Rate' },
+  { value: '300+', label: 'Partner Programs' },
+  { value: '$5M+', label: 'Scholarships Secured' },
+];
+
+const successStories = [
+  { 
+    image: pedroBaisch, 
+    name: 'Pedro Baisch', 
+    college: 'Merrimack College',
+    division: 'NCAA D1',
+    country: '🇧🇷 Brazil'
+  },
+  { 
+    image: miloPeters, 
+    name: 'Milo Peters', 
+    college: 'Dartmouth',
+    division: 'Ivy League',
+    country: '🇩🇪 Germany'
+  },
+  { 
+    image: youssef, 
+    name: 'Youssef Shafei', 
+    college: 'Central Connecticut',
+    division: 'NCAA D1',
+    country: '🇪🇬 Egypt'
+  },
+  { 
+    image: xavier, 
+    name: 'Xavier Souza', 
+    college: 'UC Irvine',
+    division: 'NCAA D1',
+    country: '🇵🇹 Portugal'
+  },
+  { 
+    image: wassim, 
+    name: 'Wassim', 
+    college: 'American University',
+    division: 'NCAA D1',
+    country: '🇫🇷 France'
+  },
+  { 
+    image: umberto, 
+    name: 'Umberto Pela', 
+    college: 'Virginia',
+    division: 'ACC',
+    country: '🇮🇹 Italy'
+  },
 ];
 
 export const Landing: React.FC = () => {
@@ -71,17 +126,17 @@ export const Landing: React.FC = () => {
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 mb-8 animate-fade-in">
               <Trophy className="h-4 w-4 text-venture-gold" />
-              <span className="text-sm text-primary-foreground/90">Trusted by 500+ athletes worldwide</span>
+              <span className="text-sm text-primary-foreground/90">The #1 Soccer Recruiting Agency</span>
             </div>
             
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-primary-foreground mb-6 animate-slide-up leading-tight">
-              Your Path to
-              <span className="block text-venture-blue-light">College Soccer</span>
+              Your Journey to
+              <span className="block text-venture-gold">U.S. College Soccer</span>
               Starts Here
             </h1>
             
             <p className="text-lg md:text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto animate-slide-up stagger-1">
-              Expert guidance, personalized support, and full transparency throughout your college recruitment journey.
+              We connect international soccer players with top U.S. college programs. Expert guidance, proven results, and full transparency throughout your recruitment.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up stagger-2">
@@ -93,7 +148,7 @@ export const Landing: React.FC = () => {
               </Link>
               <Link to="/auth">
                 <Button variant="hero-outline" size="xl" className="w-full sm:w-auto">
-                  Sign In to Portal
+                  Athlete Portal Login
                 </Button>
               </Link>
             </div>
@@ -130,15 +185,60 @@ export const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* Success Stories Section */}
+      <section className="py-20 md:py-28 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-venture-gold/10 text-venture-gold text-sm font-medium mb-4">
+              <Star className="h-4 w-4" />
+              Recent Commitments
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Our Athletes. Their Success.
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              See where Venture athletes are playing across the United States.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {successStories.map((story, index) => (
+              <div 
+                key={story.name}
+                className="group relative overflow-hidden rounded-2xl aspect-[3/4] cursor-pointer animate-scale-in"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <img 
+                  src={story.image} 
+                  alt={story.name}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                  <p className="font-bold text-sm truncate">{story.name}</p>
+                  <p className="text-xs text-white/80">{story.college}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] px-1.5 py-0.5 bg-venture-gold/90 rounded text-black font-semibold">
+                      {story.division}
+                    </span>
+                    <span className="text-[10px]">{story.country}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
-      <section className="py-20 md:py-32 bg-background">
+      <section className="py-20 md:py-28 bg-background">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Everything You Need to Succeed
+              Why Athletes Choose Venture
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              From initial profile building to signing day, we're with you every step of the way.
+              From initial assessment to signing day, we're with you every step.
             </p>
           </div>
 
@@ -165,23 +265,23 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 md:py-32 bg-muted/30">
+      <section className="py-20 md:py-28 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               How It Works
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              A streamlined process designed to maximize your chances of success.
+              A proven process designed to maximize your chances of success.
             </p>
           </div>
 
           <div className="max-w-4xl mx-auto">
             {[
-              { step: '01', title: 'Create Your Profile', description: 'Sign up and complete your athletic and academic profile with our easy-to-use portal.' },
-              { step: '02', title: 'Get Matched', description: 'Our team analyzes your profile and identifies the best college fits based on your goals.' },
-              { step: '03', title: 'Active Outreach', description: 'We contact coaches on your behalf and keep you updated on every interaction.' },
-              { step: '04', title: 'Secure Your Spot', description: 'Review offers, make your decision, and celebrate your college commitment!' },
+              { step: '01', title: 'Initial Assessment', description: 'We evaluate your athletic ability, academic profile, and goals to create a personalized recruitment strategy.' },
+              { step: '02', title: 'Profile & Video Development', description: "Our team helps you build a compelling athletic profile with highlight videos that get coaches' attention." },
+              { step: '03', title: 'Active Coach Outreach', description: 'We contact programs on your behalf, manage communications, and keep you updated on every interaction.' },
+              { step: '04', title: 'Commit to Your Program', description: 'Review offers, visit campuses, and make your decision. Celebrate your college commitment!' },
             ].map((item, index) => (
               <div 
                 key={item.step}
@@ -208,18 +308,18 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 md:py-32 venture-gradient relative overflow-hidden">
+      <section className="py-20 md:py-28 venture-gradient relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYySDI0di0yaDEyek0zNiAxNHYySDI0di0yaDF6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-50" />
         <div className="container mx-auto px-4 relative z-10 text-center">
           <h2 className="text-3xl md:text-5xl font-bold text-primary-foreground mb-6">
-            Ready to Take the Next Step?
+            Ready to Play College Soccer?
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
-            Join hundreds of athletes who have successfully navigated their college soccer journey with Venture.
+            Join hundreds of international athletes who have achieved their American college soccer dreams with Venture.
           </p>
           <Link to="/auth?mode=signup">
             <Button variant="hero" size="xl">
-              Create Your Free Account
+              Start Your Journey Today
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
