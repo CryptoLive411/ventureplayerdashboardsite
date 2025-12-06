@@ -88,6 +88,7 @@ interface PlayerDocument {
   file_name: string;
   file_path: string;
   file_size: number | null;
+  checklist_item_id: string | null;
   created_at: string;
   uploaded_by_type: string;
 }
@@ -263,11 +264,14 @@ export const PlayerDetail: React.FC = () => {
 
       if (docsData) {
         const docsByItem: Record<string, PlayerDocument[]> = {};
-        docsData.forEach((doc: PlayerDocument & { checklist_item_id: string }) => {
-          if (!docsByItem[doc.checklist_item_id]) {
-            docsByItem[doc.checklist_item_id] = [];
+        docsData.forEach((doc) => {
+          const itemId = doc.checklist_item_id;
+          if (itemId) {
+            if (!docsByItem[itemId]) {
+              docsByItem[itemId] = [];
+            }
+            docsByItem[itemId].push(doc as PlayerDocument);
           }
-          docsByItem[doc.checklist_item_id].push(doc);
         });
         setChecklistDocuments(docsByItem);
       }
