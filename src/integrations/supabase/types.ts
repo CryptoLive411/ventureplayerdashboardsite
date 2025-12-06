@@ -48,6 +48,7 @@ export type Database = {
       }
       checklist_items: {
         Row: {
+          assigned_to_player: boolean | null
           completed_at: string | null
           completed_by: string | null
           created_at: string | null
@@ -61,6 +62,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          assigned_to_player?: boolean | null
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string | null
@@ -74,6 +76,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          assigned_to_player?: boolean | null
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string | null

@@ -50,7 +50,7 @@ export const Notifications: React.FC = () => {
       const { data: notificationsData, error } = await supabase
         .from('notifications')
         .select('*')
-        .not('type', 'eq', 'college_reminder')
+        .not('type', 'in', '("college_reminder","checklist_reminder")')
         .order('created_at', { ascending: false });
 
       if (error) {

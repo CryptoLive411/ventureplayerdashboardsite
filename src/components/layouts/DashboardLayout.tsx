@@ -66,7 +66,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       const { count } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
-        .is('read_at', null);
+        .is('read_at', null)
+        .not('type', 'in', '("college_reminder","checklist_reminder")');
       
       setNotificationCount(count || 0);
     };
