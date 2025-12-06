@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
-import { Loader2, Bell, GraduationCap, CheckSquare, MessageSquare, Check } from 'lucide-react';
+import { Loader2, Bell, GraduationCap, CheckSquare, MessageSquare, Check, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 
@@ -18,6 +19,7 @@ interface Notification {
 
 export const AthleteNotifications: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,15 +56,42 @@ export const AthleteNotifications: React.FC = () => {
     };
   }, [user]);
 
-  const markAsRead = async (notificationId: string) => {
-    await supabase
-      .from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .eq('id', notificationId);
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read
+    if (!notification.read_at) {
+      await supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', notification.id);
 
-    setNotifications(notifications.map(n => 
-      n.id === notificationId ? { ...n, read_at: new Date().toISOString() } : n
-    ));
+      setNotifications(notifications.map(n => 
+        n.id === notification.id ? { ...n, read_at: new Date().toISOString() } : n
+      ));
+    }
+
+    // Navigate based on type
+    if (notification.link) {
+      navigate(notification.link);
+    } else {
+      switch (notification.type) {
+        case 'college_reminder':
+        case 'college_message':
+          navigate('/dashboard/colleges');
+          break;
+        case 'checklist_reminder':
+          navigate('/dashboard/checklist');
+          break;
+        case 'new_message':
+        case 'message':
+          navigate('/dashboard/messages');
+          break;
+        case 'offer':
+          navigate('/dashboard/offers');
+          break;
+        default:
+          break;
+      }
+    }
   };
 
   const markAllAsRead = async () => {
@@ -80,9 +109,11 @@ export const AthleteNotifications: React.FC = () => {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'college_reminder':
+      case 'college_message':
         return <GraduationCap className="h-5 w-5 text-venture-blue" />;
       case 'checklist_reminder':
         return <CheckSquare className="h-5 w-5 text-emerald-600" />;
+      case 'new_message':
       case 'message':
         return <MessageSquare className="h-5 w-5 text-amber-600" />;
       default:
@@ -144,13 +175,13 @@ export const AthleteNotifications: React.FC = () => {
             {notifications.map((notification, index) => (
               <div
                 key={notification.id}
-                className={`bg-card rounded-xl border p-5 animate-slide-up cursor-pointer transition-colors ${
+                className={`bg-card rounded-xl border p-5 animate-slide-up cursor-pointer transition-all hover:shadow-md ${
                   notification.read_at 
                     ? 'border-border' 
                     : 'border-venture-blue/30 bg-venture-blue/5'
                 }`}
                 style={{ animationDelay: `${index * 0.05}s` }}
-                onClick={() => !notification.read_at && markAsRead(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 mt-0.5">
@@ -170,9 +201,12 @@ export const AthleteNotifications: React.FC = () => {
                           </p>
                         )}
                       </div>
-                      {!notification.read_at && (
-                        <span className="h-2 w-2 rounded-full bg-venture-blue flex-shrink-0 mt-2" />
-                      )}
+                      <div className="flex items-center gap-2">
+                        {!notification.read_at && (
+                          <span className="h-2 w-2 rounded-full bg-venture-blue flex-shrink-0" />
+                        )}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       {format(new Date(notification.created_at), 'MMM d, yyyy h:mm a')}

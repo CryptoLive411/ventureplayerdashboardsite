@@ -55,7 +55,9 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          player_files: string[] | null
           player_id: string
+          player_notes: string | null
           sort_order: number | null
           status: string | null
           title: string
@@ -69,7 +71,9 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          player_files?: string[] | null
           player_id: string
+          player_notes?: string | null
           sort_order?: number | null
           status?: string | null
           title: string
@@ -83,7 +87,9 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          player_files?: string[] | null
           player_id?: string
+          player_notes?: string | null
           sort_order?: number | null
           status?: string | null
           title?: string
